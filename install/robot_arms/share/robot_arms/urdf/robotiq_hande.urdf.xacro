@@ -1,0 +1,213 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:macro name="robotiq_hande"  params="prefix origin">
+    <joint name="${prefix}base_to_gripper" type="fixed">
+      <!-- <origin rpy="0 0 0" xyz="0 0 0.00248"/> -->
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <parent link="${origin}"/>
+      <child link="${prefix}base_link"/>
+    </joint>
+
+    <link name="${prefix}base_link">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://robot_arms/meshes/visual/gripper.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <material name="Black">
+          <color rgba="0.1 0.1 0.1 1" />
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://robot_arms/meshes/collision/gripper.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="${prefix}jaw1_link">
+      <visual>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <geometry>
+          <mesh filename="package://robot_arms/meshes/visual/jaw.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <material name="grey">
+          <color rgba="0.83 0.83 0.83 1" />
+        </material>
+      </visual>
+      <collision>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <geometry>
+          <mesh filename="package://robot_arms/meshes/collision/jaw.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="${prefix}jaw2_link">
+      <visual>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <geometry>
+          <mesh filename="package://robot_arms/meshes/visual/jaw.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <material name="Grey">
+          <color rgba="0.83 0.83 0.83 1" />
+        </material>
+      </visual>
+      <collision>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <geometry>
+          <mesh filename="package://robot_arms/meshes/collision/jaw.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="${prefix}finger1">
+      <visual>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <geometry>
+          <mesh filename="package://robot_arms/meshes/visual/finger.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <material name="Black">
+          <color rgba="0.1 0.1 0.1 1" />
+        </material>
+      </visual>
+      <collision>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <geometry>
+          <mesh filename="package://robot_arms/meshes/collision/finger.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="${prefix}finger2">
+      <visual>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <geometry>
+          <mesh filename="package://robot_arms/meshes/visual/finger.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <material name="Black">
+          <color rgba="0.1 0.1 0.1 1" />
+        </material>
+      </visual>
+      <collision>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <geometry>
+          <mesh filename="package://robot_arms/meshes/collision/finger.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <!-- <link name="${prefix}finger1">
+      <visual>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <geometry>
+          <mesh filename="package://robot_arms/meshes/visual/finger-thin.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <material name="Black">
+          <color rgba="0.1 0.1 0.1 1" />
+        </material>
+      </visual>
+      <collision>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <geometry>
+          <mesh filename="package://robot_arms/meshes/collision/finger-thin.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="${prefix}finger2">
+      <visual>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <geometry>
+          <mesh filename="package://robot_arms/meshes/visual/finger-thin-prox.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <material name="Black">
+          <color rgba="0.1 0.1 0.1 1" />
+        </material>
+      </visual>
+      <collision>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <geometry>
+          <mesh filename="package://robot_arms/meshes/collision/finger-thin-prox.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+      </collision>
+    </link> -->
+
+    <!-- <link name="${prefix}finger1">
+      <visual>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <geometry>
+          <mesh filename="package://robot_arms/meshes/visual/modular_finger.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <material name="Black">
+          <color rgba="0.1 0.1 0.1 1" />
+        </material>
+      </visual>
+      <collision>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <geometry>
+          <mesh filename="package://robot_arms/meshes/collision/modular_finger.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="${prefix}finger2">
+      <visual>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <geometry>
+          <mesh filename="package://robot_arms/meshes/visual/modular_finger.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <material name="Black">
+          <color rgba="0.1 0.1 0.1 1" />
+        </material>
+      </visual>
+      <collision>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <geometry>
+          <mesh filename="package://robot_arms/meshes/collision/modular_finger.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+      </collision>
+    </link> -->
+
+    <joint name="${prefix}joint" type="prismatic">
+      <origin rpy="0 0 0" xyz="0 0 0.0952"/>
+      <parent link="${prefix}base_link"/>
+      <child link="${prefix}jaw1_link"/>
+      <axis xyz="1 0 0"/>
+      <limit effort="130" lower="0.0" upper="0.025" velocity="0.15"/>
+    </joint>
+
+    <joint name="${prefix}base_to_${prefix}jaw2_link" type="prismatic">
+      <origin rpy="0 0 ${pi}" xyz="0 0 0.0952"/>
+      <parent link="${prefix}base_link"/>
+      <child link="${prefix}jaw2_link"/>
+      <axis xyz="1 0 0"/>
+      <limit effort="130" lower="0.0" upper="0.025" velocity="0.15"/>
+      <mimic joint="${prefix}joint" multiplier="1" offset="0"/>
+    </joint>
+
+    <joint name="${prefix}jaw1_to_finger1" type="fixed">
+      <origin rpy="0 0 0" xyz="0 0 0.0325"/>
+      <parent link="${prefix}jaw1_link"/>
+      <child link="${prefix}finger1"/>
+    </joint>
+
+    <joint name="${prefix}jaw2_to_finger2" type="fixed">
+      <origin rpy="0 0 0" xyz="0 0 0.0325"/>
+      <parent link="${prefix}jaw2_link"/>
+      <child link="${prefix}finger2"/>
+    </joint>
+
+   <transmission name="${prefix}joint_trans">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${prefix}joint">
+        <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+      </joint>
+      <actuator name="${prefix}joint_motor">
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission>
+    
+  </xacro:macro>
+</robot>
