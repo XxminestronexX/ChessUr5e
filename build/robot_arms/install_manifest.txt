@@ -1,4 +1,5 @@
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//launch/ur5e_description.launch.py
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//launch/ur5e_gazebo.launch.py
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//config/uclv_right_ur5e_kinematics.yaml
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//config/uclv_left_ur5e_kinematics,yaml
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//config/ur5e/joint_limits.yaml
