@@ -42,3 +42,6 @@ La fase esecutiva trasforma la mossa scacchistica in traiettorie spaziali.
 * **AI/Vision:** YOLO (PyTorch/ONNX), OpenCV
 * **Chess Engine:** Stockfish 18
 * **Linguaggi:** Python, C++
+
+## Comando importante Gazebo
+export GZ_SIM_RESOURCE_PATH=$GZ_SIM_RESOURCE_PATH:~/braccio_ws/src
