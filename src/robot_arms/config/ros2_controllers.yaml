@@ -9,7 +9,7 @@ controller_manager:
       type: joint_trajectory_controller/JointTrajectoryController
 
     gripper_controller:
-      type: position_controllers/GripperActionController
+      type: position_controllers/GripperActionController # 👈 Torniamo al controller singolo standard
 
 arm_controller:
   ros__parameters:
@@ -28,7 +28,7 @@ arm_controller:
 
 gripper_controller:
   ros__parameters:
-    joint: hande_joint
+    joint: hande_joint # 👈 Singolo (torna ad essere al singolare)
     command_interfaces:
       - position
     state_interfaces:
