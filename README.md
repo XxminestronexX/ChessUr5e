@@ -44,4 +44,18 @@ La fase esecutiva trasforma la mossa scacchistica in traiettorie spaziali.
 * **Linguaggi:** Python, C++
 
 ## Comando importante Gazebo
-export GZ_SIM_RESOURCE_PATH=$GZ_SIM_RESOURCE_PATH:~/braccio_ws/src
+
+colcon build
+
+export GZ_SIM_RESOURCE_PATH=$GZ_SIM_RESOURCE_PATH:~/{PATH_CARTELLA_WS}/src
+
+source install/setup.bash
+
+ros2 launch robot_arms ur5e_gazebo.launch.py
+
+## Specifiche schacchiera
+schacchiera : 51x51 cm
+
+caselle: 57mm di lato
+
+il re alto: 95mm e base di 37mm di diametro

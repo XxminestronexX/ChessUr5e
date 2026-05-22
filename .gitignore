@@ -1,5 +1,8 @@
-vscode/
+# Ignora le cartelle di configurazione e di build
+.vscode/
 log/
 build/
 install/
-.colcon/
+
+# Opzionale: ignora anche i singoli file .log ovunque si trovino
+*.log
