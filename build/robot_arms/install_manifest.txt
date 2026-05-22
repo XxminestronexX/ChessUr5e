@@ -29,6 +29,19 @@
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/visual/jaw.stl
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/visual/taping_gun_rot.stl
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/visual/myvention_visual.stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/Rook (Solid Base).stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/Queen (Solid Base).stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/Bishop (Solid Base).stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/Knight (Solid Base).stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/Pawn (Solid Base).stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/chessboard.stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/bishop_Rev01.stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/King (Solid Base).stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/mount/realsenseURflangeSupport.stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/mount/images/realsenseURflangeSupportNerdy.png
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/mount/images/bb93dee9-e9f3-4dae-a699-27ad095fd9d5.jpg
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/mount/images/Drawing.jpeg
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/mount/images/realsenseURflangeSupport.png
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//rviz/view_robot.rviz
 /home/dav/braccio_ws/install/robot_arms/share/ament_index/resource_index/package_run_dependencies/robot_arms
 /home/dav/braccio_ws/install/robot_arms/share/ament_index/resource_index/parent_prefix_path/robot_arms

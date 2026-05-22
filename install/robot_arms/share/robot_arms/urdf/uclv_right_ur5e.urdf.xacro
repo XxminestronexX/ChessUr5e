@@ -43,6 +43,34 @@
     </collision>  
    </link>
 
+   <joint name="table_to_chessboard" type="fixed">
+     <parent link="table"/>
+     <child link="chessboard"/>
+     <origin xyz="-0.5 -0.15 0" rpy="0 0 -1.5708"/>
+   </joint>
+
+   <link name="chessboard">
+     <inertial>
+       <mass value="1.5"/>
+       <inertia ixx="0.03" ixy="0.0" ixz="0.0" iyy="0.03" iyz="0.0" izz="0.06"/>
+     </inertial>
+     <visual>
+       <origin xyz="0 0 0" rpy="0 0 0"/>
+       <geometry>
+         <mesh filename="package://robot_arms/meshes/scacchi/chessboard.stl" scale="0.005 0.005 0.005"/>
+       </geometry>
+       <material name="Wood">
+         <color rgba="0.76 0.60 0.42 1.0"/>
+       </material>
+     </visual>
+     <collision>
+       <origin xyz="0 0 0" rpy="0 0 0"/>
+       <geometry>
+         <mesh filename="package://robot_arms/meshes/scacchi/chessboard.stl" scale="0.005 0.005 0.005"/>
+       </geometry>
+     </collision>
+   </link>
+
    <xacro:ur_robot
      name="ur5e"
      tf_prefix="$(arg tf_prefix)"
@@ -66,32 +94,44 @@
      </hardware>
      <joint name="shoulder_pan_joint">
        <command_interface name="position"/>
-       <state_interface name="position"/>
+       <state_interface name="position">
+         <param name="initial_value">0.0</param>
+       </state_interface>
        <state_interface name="velocity"/>
      </joint>
      <joint name="shoulder_lift_joint">
        <command_interface name="position"/>
-       <state_interface name="position"/>
+       <state_interface name="position">
+         <param name="initial_value">0.0</param>
+       </state_interface>
        <state_interface name="velocity"/>
      </joint>
      <joint name="elbow_joint">
        <command_interface name="position"/>
-       <state_interface name="position"/>
+       <state_interface name="position">
+         <param name="initial_value">0.0</param>
+       </state_interface>
        <state_interface name="velocity"/>
      </joint>
      <joint name="wrist_1_joint">
        <command_interface name="position"/>
-       <state_interface name="position"/>
+       <state_interface name="position">
+         <param name="initial_value">0.0</param>
+       </state_interface>
        <state_interface name="velocity"/>
      </joint>
      <joint name="wrist_2_joint">
        <command_interface name="position"/>
-       <state_interface name="position"/>
+       <state_interface name="position">
+         <param name="initial_value">0.0</param>
+       </state_interface>
        <state_interface name="velocity"/>
      </joint>
      <joint name="wrist_3_joint">
        <command_interface name="position"/>
-       <state_interface name="position"/>
+       <state_interface name="position">
+         <param name="initial_value">0.0</param>
+       </state_interface>
        <state_interface name="velocity"/>
      </joint>
      
