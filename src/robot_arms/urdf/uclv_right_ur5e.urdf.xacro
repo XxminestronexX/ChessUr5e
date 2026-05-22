@@ -1,15 +1,13 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://wiki.ros.org/xacro" name="ur5e">
 
-   <!-- robot name parameter -->
    <xacro:arg name="name" default="ur5e"/>
-   <!-- import main macro -->
    <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro"/>
 
-   <!-- possible 'ur_type' values: ur3, ur3e, ur5, ur5e, ur10, ur10e, ur16e, ur20, ur30 -->
    <xacro:arg name="ur_type" default="ur5e"/>
 
-   <!-- parameters -->
+   <xacro:include filename="$(find robot_arms)/urdf/robotiq_hande.urdf.xacro" />
+
    <xacro:arg name="tf_prefix" default="" />
    <xacro:arg name="joint_limit_params" default="$(find ur_description)/config/$(arg ur_type)/joint_limits.yaml"/>
    <xacro:arg name="kinematics_params" default="$(find ur_description)/config/$(arg ur_type)/default_kinematics.yaml"/>
@@ -19,7 +17,6 @@
    <xacro:arg name="safety_pos_margin" default="0.15"/>
    <xacro:arg name="safety_k_position" default="20"/>
 
-   <!-- create link fixed to the "world" -->
    <link name="world"/>
 
    <joint name="world_to_table" type="fixed">
@@ -28,10 +25,9 @@
      <origin xyz="0 0 0" rpy="0 0 0"/>
    </joint>
 
-   <!-- table as base for the UR5e robot -->
    <link name="table">
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
         <mesh filename="package://robot_arms/meshes/visual/myvention_visual.stl" scale="0.001 0.001 0.001"/>
       </geometry>
@@ -40,14 +36,13 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
         <mesh filename="package://robot_arms/meshes/collision/myvention_collision.stl" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>  
    </link>
 
-   <!-- arm -->
    <xacro:ur_robot
      name="ur5e"
      tf_prefix="$(arg tf_prefix)"
@@ -63,9 +58,52 @@
      <origin xyz="-0.188189 0.13575 0.556631" rpy="${3*pi/4} 0 ${-pi/2}" />
    </xacro:ur_robot>
 
-   <!-- Gazebo Sim ros2_control plugin for ROS 2 Jazzy -->
+   <xacro:robotiq_hande prefix="hande_" origin="$(arg tf_prefix)tool0"/>
+
+   <ros2_control name="GazeboSimSystem" type="system">
+     <hardware>
+       <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+     </hardware>
+     <joint name="shoulder_pan_joint">
+       <command_interface name="position"/>
+       <state_interface name="position"/>
+       <state_interface name="velocity"/>
+     </joint>
+     <joint name="shoulder_lift_joint">
+       <command_interface name="position"/>
+       <state_interface name="position"/>
+       <state_interface name="velocity"/>
+     </joint>
+     <joint name="elbow_joint">
+       <command_interface name="position"/>
+       <state_interface name="position"/>
+       <state_interface name="velocity"/>
+     </joint>
+     <joint name="wrist_1_joint">
+       <command_interface name="position"/>
+       <state_interface name="position"/>
+       <state_interface name="velocity"/>
+     </joint>
+     <joint name="wrist_2_joint">
+       <command_interface name="position"/>
+       <state_interface name="position"/>
+       <state_interface name="velocity"/>
+     </joint>
+     <joint name="wrist_3_joint">
+       <command_interface name="position"/>
+       <state_interface name="position"/>
+       <state_interface name="velocity"/>
+     </joint>
+     <joint name="hande_joint">
+       <command_interface name="position"/>
+       <state_interface name="position"/>
+       <state_interface name="velocity"/>
+     </joint>
+   </ros2_control>
+
    <gazebo>
      <plugin filename="libgz_ros2_control-system.so" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+       <parameters>$(find robot_arms)/config/ros2_controllers.yaml</parameters>
      </plugin>
    </gazebo>
 

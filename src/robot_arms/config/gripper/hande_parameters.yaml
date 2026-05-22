@@ -1,0 +1,13 @@
+robotiq_hande:
+  mass: 1.09 # [kg] Massa totale inclusa di coupling
+  inertia:
+    ixx: 0.005341
+    iyy: 0.005447
+    izz: 0.000636
+    ixy: 0.0
+    ixz: 0.0
+    iyz: 0.0
+  limits:
+    lower_stroke: 0.0    # [m] completamente aperta
+    upper_stroke: 0.025  # [m] corsa massima per singolo jaw (totale 50mm)
+    max_effort: 130.0    # [N] sforzo massimo teorico

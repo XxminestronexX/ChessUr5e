@@ -22,7 +22,10 @@ def generate_launch_description():
         package='robot_state_publisher',
         executable='robot_state_publisher',
         output='screen',
-        parameters=[{'robot_description': robot_description_content, 'use_sim_time': True}]
+        parameters=[{
+            'robot_description': robot_description_content, 
+            'use_sim_time': True
+        }]
     )
     
     # Azione per avviare Gazebo Sim (Mondo vuoto)
@@ -45,8 +48,42 @@ def generate_launch_description():
         output='screen'
     )
 
+    # 1. BRIDGE PER IL CLOCK (Risolve il loop del "No clock received")
+    clock_bridge = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        arguments=['/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock'],
+        output='screen'
+    )
+
+    # 2. SPAWNERS PER I CONTROLLORI DI ROS2_CONTROL (Accendono i motori)
+    joint_state_broadcaster_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["joint_state_broadcaster"],
+        output="screen",
+    )
+
+    arm_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["arm_controller"],
+        output="screen",
+    )
+
+    gripper_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["gripper_controller"],
+        output="screen",
+    )
+
     return LaunchDescription([
         gazebo,
         robot_state_publisher,
-        spawn_robot
+        spawn_robot,
+        clock_bridge,
+        joint_state_broadcaster_spawner,
+        arm_controller_spawner,
+        gripper_controller_spawner
     ])
