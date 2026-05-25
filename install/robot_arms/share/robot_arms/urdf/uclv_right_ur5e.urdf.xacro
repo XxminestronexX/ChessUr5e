@@ -3,9 +3,7 @@
 
    <xacro:arg name="name" default="ur5e"/>
    <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro"/>
-
    <xacro:arg name="ur_type" default="ur5e"/>
-
    <xacro:include filename="$(find robot_arms)/urdf/robotiq_hande.urdf.xacro" />
 
    <xacro:arg name="tf_prefix" default="" />
@@ -22,7 +20,7 @@
    <joint name="world_to_table" type="fixed">
      <parent link="world"/>
      <child link="table"/>
-     <origin xyz="0 0 0" rpy="0 0 0"/>
+     <origin xyz="0 0 0" rpy="0 0 0"/> 
    </joint>
 
    <link name="table">
@@ -41,34 +39,6 @@
         <mesh filename="package://robot_arms/meshes/collision/myvention_collision.stl" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>  
-   </link>
-
-   <joint name="table_to_chessboard" type="fixed">
-     <parent link="table"/>
-     <child link="chessboard"/>
-     <origin xyz="-0.5 -0.15 0" rpy="0 0 -1.5708"/>
-   </joint>
-
-   <link name="chessboard">
-     <inertial>
-       <mass value="1.5"/>
-       <inertia ixx="0.03" ixy="0.0" ixz="0.0" iyy="0.03" iyz="0.0" izz="0.06"/>
-     </inertial>
-     <visual>
-       <origin xyz="0 0 0" rpy="0 0 0"/>
-       <geometry>
-         <mesh filename="package://robot_arms/meshes/scacchi/chessboard.stl" scale="0.005 0.005 0.005"/>
-       </geometry>
-       <material name="Wood">
-         <color rgba="0.76 0.60 0.42 1.0"/>
-       </material>
-     </visual>
-     <collision>
-       <origin xyz="0 0 0" rpy="0 0 0"/>
-       <geometry>
-         <mesh filename="package://robot_arms/meshes/scacchi/chessboard.stl" scale="0.005 0.005 0.005"/>
-       </geometry>
-     </collision>
    </link>
 
    <xacro:ur_robot
@@ -94,53 +64,39 @@
      </hardware>
      <joint name="shoulder_pan_joint">
        <command_interface name="position"/>
-       <state_interface name="position">
-         <param name="initial_value">0.0</param>
-       </state_interface>
+       <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
        <state_interface name="velocity"/>
      </joint>
      <joint name="shoulder_lift_joint">
        <command_interface name="position"/>
-       <state_interface name="position">
-         <param name="initial_value">0.0</param>
-       </state_interface>
+       <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
        <state_interface name="velocity"/>
      </joint>
      <joint name="elbow_joint">
        <command_interface name="position"/>
-       <state_interface name="position">
-         <param name="initial_value">0.0</param>
-       </state_interface>
+       <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
        <state_interface name="velocity"/>
      </joint>
      <joint name="wrist_1_joint">
        <command_interface name="position"/>
-       <state_interface name="position">
-         <param name="initial_value">0.0</param>
-       </state_interface>
+       <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
        <state_interface name="velocity"/>
      </joint>
      <joint name="wrist_2_joint">
        <command_interface name="position"/>
-       <state_interface name="position">
-         <param name="initial_value">0.0</param>
-       </state_interface>
+       <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
        <state_interface name="velocity"/>
      </joint>
      <joint name="wrist_3_joint">
        <command_interface name="position"/>
-       <state_interface name="position">
-         <param name="initial_value">0.0</param>
-       </state_interface>
+       <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
        <state_interface name="velocity"/>
      </joint>
-     
      <joint name="hande_joint">
        <command_interface name="position"/>
        <state_interface name="position"/>
        <state_interface name="velocity"/>
      </joint>
-     
      <joint name="hande_base_to_hande_jaw2_link">
        <param name="mimic">hande_joint</param>
        <param name="multiplier">1.0</param>

@@ -1,4 +1,0 @@
-Invoking command in '/home/dav/braccio_ws/build/robot_arms': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --build /home/dav/braccio_ws/build/robot_arms -- -j12 -l12
-Invoked command in '/home/dav/braccio_ws/build/robot_arms' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --build /home/dav/braccio_ws/build/robot_arms -- -j12 -l12
-Invoking command in '/home/dav/braccio_ws/build/robot_arms': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --install /home/dav/braccio_ws/build/robot_arms
-Invoked command in '/home/dav/braccio_ws/build/robot_arms' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --install /home/dav/braccio_ws/build/robot_arms

@@ -7,10 +7,12 @@
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//config/ur5e/joint_limits.yaml
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//config/ur5e/physical_parameters.yaml
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//config/ur5e/visual_parameters.yaml
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//urdf/chessboard.urdf.xacro
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//urdf/uclv_left_ur5e.urdf.xacro
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//urdf/robotiq_hande.urdf.xacro
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//urdf/uclv_dual_ur5e.urdf.xacro
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//urdf/uclv_right_ur5e.urdf.xacro
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//urdf/chess_piece.urdf.xacro
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/collision/taping_gun.stl
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/collision/finger-thin.stl
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/collision/gripper.stl
@@ -29,14 +31,19 @@
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/visual/jaw.stl
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/visual/taping_gun_rot.stl
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/visual/myvention_visual.stl
-/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/Rook (Solid Base).stl
-/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/Queen (Solid Base).stl
-/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/Bishop (Solid Base).stl
-/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/Knight (Solid Base).stl
-/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/Pawn (Solid Base).stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/regina.stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/pedone.stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/torre_fide.stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/regina_fide.stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/torre.stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/pedone_fide.stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/alfiere.stl
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/chessboard.stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/re_fide.stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/re.stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/alfiere_fide.stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/cavallo.stl
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/bishop_Rev01.stl
-/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/King (Solid Base).stl
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/mount/realsenseURflangeSupport.stl
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/mount/images/realsenseURflangeSupportNerdy.png
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/mount/images/bb93dee9-e9f3-4dae-a699-27ad095fd9d5.jpg

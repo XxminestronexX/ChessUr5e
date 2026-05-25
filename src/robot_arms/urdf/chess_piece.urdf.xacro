@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="chess_piece">
+
+  <xacro:arg name="mesh_name" default="pedone_fide.stl"/>
+  <xacro:arg name="color_rgba" default="1.0 1.0 1.0 1.0"/>
+
+  <link name="piece_base_link">
+    <inertial>
+      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+      <mass value="0.05"/>
+      <inertia ixx="0.00001" ixy="0.0" ixz="0.0" iyy="0.00001" iyz="0.0" izz="0.00001"/>
+    </inertial>
+    
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://robot_arms/meshes/scacchi/$(arg mesh_name)" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="piece_material">
+        <color rgba="$(arg color_rgba)"/>
+      </material>
+    </visual>
+    
+    <collision>
+      <origin xyz="0 0 0.025" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.018" length="0.05"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <gazebo reference="piece_base_link">
+    <mu1>1.5</mu1>
+    <mu2>1.5</mu2>
+    <kp>1000000.0</kp>
+    <kd>1.0</kd>
+  </gazebo>
+
+</robot>
