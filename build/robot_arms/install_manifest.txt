@@ -31,6 +31,7 @@
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/visual/jaw.stl
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/visual/taping_gun_rot.stl
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/visual/myvention_visual.stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/camera/d435.dae
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/regina.stl
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/pedone.stl
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/torre_fide.stl

@@ -10,8 +10,80 @@
     <xacro:property name="upper_limit" value="${gripper_props['robotiq_hande']['limits']['upper_stroke']}" />
     <xacro:property name="max_effort" value="${gripper_props['robotiq_hande']['limits']['max_effort']}" />
 
+    <joint name="${prefix}flange_to_camera_mount" type="fixed">
+      <parent link="${origin}"/>
+      <child link="${prefix}camera_mount_link"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+
+    <link name="${prefix}camera_mount_link">
+      <inertial>
+        <mass value="0.08"/>
+        <origin xyz="0 0.028 0.005" rpy="0 0 0"/>
+        <inertia ixx="0.0001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.0001"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="-1.5708 0 0"/>
+        <geometry>
+          <mesh filename="package://robot_arms/meshes/mount/realsenseURflangeSupport.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <material name="MountGray">
+          <color rgba="0.4 0.4 0.4 1.0"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="-1.5708 0 0"/>
+        <geometry>
+          <mesh filename="package://robot_arms/meshes/mount/realsenseURflangeSupport.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <gazebo reference="${prefix}camera_mount_link">
+      <visual>
+        <material>
+          <ambient>0.3 0.3 0.3 1.0</ambient>
+          <diffuse>0.4 0.4 0.4 1.0</diffuse>
+          <specular>0.2 0.2 0.2 1.0</specular>
+        </material>
+      </visual>
+    </gazebo>
+
+    <joint name="${prefix}camera_mount_to_camera" type="fixed">
+      <parent link="${prefix}camera_mount_link"/>
+      <child link="${prefix}camera_link"/>
+      <origin xyz="0 0.0575 0.01145" rpy="0 0 0"/>
+    </joint>
+
+    <link name="${prefix}camera_link">
+      <inertial>
+        <mass value="0.072"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <inertia ixx="0.00005" ixy="0.0" ixz="0.0" iyy="0.00001" iyz="0.0" izz="0.00005"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://robot_arms/meshes/camera/d435.dae"/>
+        </geometry>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.026 0.090 0.025"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="${prefix}camera_to_optical" type="fixed">
+      <parent link="${prefix}camera_link"/>
+      <child link="${prefix}camera_color_optical_frame"/>
+      <origin xyz="0 0 0" rpy="-1.5708 0 -1.5708"/>
+    </joint>
+    <link name="${prefix}camera_color_optical_frame"/>
+
     <joint name="${prefix}base_to_gripper" type="fixed">
-      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <origin rpy="0 0 0" xyz="0 0 0.005"/>
       <parent link="${origin}"/>
       <child link="${prefix}base_link"/>
     </joint>

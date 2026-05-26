@@ -64,32 +64,32 @@
      </hardware>
      <joint name="shoulder_pan_joint">
        <command_interface name="position"/>
-       <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+       <state_interface name="position"><param name="initial_value">0.7</param></state_interface>
        <state_interface name="velocity"/>
      </joint>
      <joint name="shoulder_lift_joint">
        <command_interface name="position"/>
-       <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+       <state_interface name="position"><param name="initial_value">0.83</param></state_interface>
        <state_interface name="velocity"/>
      </joint>
      <joint name="elbow_joint">
        <command_interface name="position"/>
-       <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+       <state_interface name="position"><param name="initial_value">-2.18</param></state_interface>
        <state_interface name="velocity"/>
      </joint>
      <joint name="wrist_1_joint">
        <command_interface name="position"/>
-       <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+       <state_interface name="position"><param name="initial_value">-1.1</param></state_interface>
        <state_interface name="velocity"/>
      </joint>
      <joint name="wrist_2_joint">
        <command_interface name="position"/>
-       <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+       <state_interface name="position"><param name="initial_value">2.2</param></state_interface>
        <state_interface name="velocity"/>
      </joint>
      <joint name="wrist_3_joint">
        <command_interface name="position"/>
-       <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+       <state_interface name="position"><param name="initial_value">0.43</param></state_interface>
        <state_interface name="velocity"/>
      </joint>
      <joint name="hande_joint">
