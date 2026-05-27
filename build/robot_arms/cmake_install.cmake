@@ -49,6 +49,7 @@ if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT
     "/home/dav/braccio_ws/src/robot_arms/urdf"
     "/home/dav/braccio_ws/src/robot_arms/meshes"
     "/home/dav/braccio_ws/src/robot_arms/rviz"
+    "/home/dav/braccio_ws/src/robot_arms/materials"
     )
 endif()
 

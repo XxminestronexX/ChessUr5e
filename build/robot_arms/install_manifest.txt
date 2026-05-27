@@ -51,6 +51,7 @@
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/mount/images/Drawing.jpeg
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/mount/images/realsenseURflangeSupport.png
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//rviz/view_robot.rviz
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//materials/textures/aruco_0.png
 /home/dav/braccio_ws/install/robot_arms/share/ament_index/resource_index/package_run_dependencies/robot_arms
 /home/dav/braccio_ws/install/robot_arms/share/ament_index/resource_index/parent_prefix_path/robot_arms
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms/environment/ament_prefix_path.sh

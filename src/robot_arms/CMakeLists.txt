@@ -18,6 +18,7 @@ install(DIRECTORY
   urdf
   meshes
   rviz
+  materials
   DESTINATION share/${PROJECT_NAME}/
 )
 
