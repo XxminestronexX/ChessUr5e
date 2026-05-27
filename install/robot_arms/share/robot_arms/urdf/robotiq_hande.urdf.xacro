@@ -52,7 +52,7 @@
     <joint name="${prefix}camera_mount_to_camera" type="fixed">
       <parent link="${prefix}camera_mount_link"/>
       <child link="${prefix}camera_link"/>
-      <origin xyz="0 0.0575 0.01145" rpy="0 0 0"/>
+      <origin xyz="0 0.0575 0.03" rpy="0 0 0"/>
     </joint>
 
     <link name="${prefix}camera_link">
@@ -62,13 +62,13 @@
         <inertia ixx="0.00005" ixy="0.0" ixz="0.0" iyy="0.00001" iyz="0.0" izz="0.00005"/>
       </inertial>
       <visual>
-        <origin xyz="0.005 0 0" rpy="0 0 0"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
           <mesh filename="package://robot_arms/meshes/camera/d435.dae"/>
         </geometry>
       </visual>
       <collision>
-        <origin xyz="0.005 0 0" rpy="0 0 0"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
           <box size="0.026 0.090 0.025"/>
         </geometry>
