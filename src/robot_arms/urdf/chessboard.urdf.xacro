@@ -1,23 +1,20 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://wiki.ros.org/xacro" name="chessboard">
   
-  <link name="chessboard_link">
+<link name="chessboard_link">
     <inertial>
       <origin xyz="0 0 0.005" rpy="0 0 0"/>
       <mass value="1.5"/>
       <inertia ixx="0.03" ixy="0.0" ixz="0.0" iyy="0.03" iyz="0.0" izz="0.06"/>
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 0.005" rpy="1.5708 0 0"/>
       <geometry>
-        <mesh filename="package://robot_arms/meshes/scacchi/chessboard.stl" scale="0.005 0.005 0.005"/>
+        <mesh filename="package://robot_arms/meshes/scacchi/chessboard.obj" scale="1 1 1"/>
       </geometry>
-      <material name="Wood">
-        <color rgba="0.76 0.60 0.42 1.0"/>
-      </material>
-    </visual>
+      </visual>
     <collision>
-      <origin xyz="0 0 0.005" rpy="0 0 0"/>
+      <origin xyz="0 0 0.005" rpy="1.5708 0 0"/>
       <geometry>
         <box size="0.51 0.51 0.01"/>
       </geometry>
@@ -54,6 +51,14 @@
     <parent link="chessboard_link"/>
     <child link="aruco_marker_link"/>
     <origin xyz="0.28 0.23 0.013" rpy="0 0 0"/>
+  </joint>
+
+  <link name="a1_square_link"/>
+
+  <joint name="aruco_to_a1" type="fixed">
+    <parent link="aruco_marker_link"/>
+    <child link="a1_square_link"/>
+    <origin xyz="0.0685 0.066 0" rpy="0 0 0"/>
   </joint>
 
   <gazebo reference="aruco_marker_link">

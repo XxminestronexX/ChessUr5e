@@ -41,6 +41,37 @@
     </collision>  
    </link>
 
+   <link name="wall_link">
+     <visual>
+       <origin xyz="0 0 1.0" rpy="0 0 0"/>
+       <geometry>
+         <box size="3.0 0.1 2.0"/> </geometry>
+       <material name="WallWhite">
+         <color rgba="0.9 0.9 0.9 1.0"/>
+       </material>
+     </visual>
+     <collision>
+       <origin xyz="0 0 1.0" rpy="0 0 0"/>
+       <geometry>
+         <box size="3.0 0.1 2.0"/>
+       </geometry>
+     </collision>
+   </link>
+
+   <joint name="table_to_wall" type="fixed">
+     <parent link="table"/>
+     <child link="wall_link"/>
+     <origin xyz="0 0.55 0" rpy="0 0 0"/> 
+   </joint>
+
+   <gazebo reference="wall_link">
+     <visual>
+       <material>
+         <ambient>0.9 0.9 0.95 1.0</ambient> <diffuse>0.9 0.9 0.95 1.0</diffuse>
+       </material>
+     </visual>
+   </gazebo>
+
    <xacro:ur_robot
      name="ur5e"
      tf_prefix="$(arg tf_prefix)"
