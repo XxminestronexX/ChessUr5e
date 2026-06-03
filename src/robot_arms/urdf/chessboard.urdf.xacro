@@ -1,22 +1,24 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://wiki.ros.org/xacro" name="chessboard">
   
-<link name="chessboard_link">
+  <link name="chessboard_link">
     <inertial>
-      <origin xyz="0 0 0.005" rpy="0 0 0"/>
+      <origin xyz="0 0 0.0075" rpy="0 0 0"/>
       <mass value="1.5"/>
       <inertia ixx="0.03" ixy="0.0" ixz="0.0" iyy="0.03" iyz="0.0" izz="0.06"/>
     </inertial>
+    
     <visual>
-      <origin xyz="0 0 0.005" rpy="1.5708 0 0"/>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
       <geometry>
         <mesh filename="package://robot_arms/meshes/scacchi/chessboard.obj" scale="1 1 1"/>
       </geometry>
-      </visual>
+    </visual>
+    
     <collision>
-      <origin xyz="0 0 0.005" rpy="1.5708 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.51 0.51 0.01"/>
+        <box size="0.51 0.51 0.015"/>
       </geometry>
     </collision>
   </link>
@@ -24,33 +26,21 @@
   <gazebo reference="chessboard_link">
     <mu1>1.0</mu1>
     <mu2>1.0</mu2>
-    <kp>1000000.0</kp>
-    <kd>1.0</kd>
   </gazebo>
 
-<link name="aruco_marker_link">
-    <inertial>
-      <mass value="0.01"/>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <inertia ixx="0.00001" ixy="0" ixz="0" iyy="0.00001" iyz="0" izz="0.00001"/>
-    </inertial>
+  <link name="aruco_marker_link">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.05 0.05 0.001"/> </geometry>
-    </visual>
-    <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.05 0.05 0.001"/>
+        <box size="0.05 0.05 0.001"/> 
       </geometry>
-    </collision>
+    </visual>
   </link>
 
   <joint name="chessboard_to_aruco" type="fixed">
     <parent link="chessboard_link"/>
     <child link="aruco_marker_link"/>
-    <origin xyz="0.28 0.23 0.013" rpy="0 0 0"/>
+    <origin xyz="0.28 0.23 0.0155" rpy="0 0 0"/>
   </joint>
 
   <link name="a1_square_link"/>
@@ -58,7 +48,7 @@
   <joint name="aruco_to_a1" type="fixed">
     <parent link="aruco_marker_link"/>
     <child link="a1_square_link"/>
-    <origin xyz="0.0685 0.066 0" rpy="0 0 0"/>
+    <origin xyz="-0.0805 -0.0305 0" rpy="0 0 0"/>
   </joint>
 
   <gazebo reference="aruco_marker_link">
@@ -70,8 +60,6 @@
         <pbr>
           <metal>
             <albedo_map>file://$(find robot_arms)/materials/textures/aruco_0.png</albedo_map>
-            <roughness>1.0</roughness>
-            <metalness>0.0</metalness>
           </metal>
         </pbr>
       </material>

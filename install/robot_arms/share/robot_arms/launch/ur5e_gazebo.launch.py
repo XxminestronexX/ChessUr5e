@@ -44,7 +44,7 @@ def generate_launch_description():
     spawn_robot = Node(
         package='ros_gz_sim',
         executable='create',
-        arguments=['-name', 'ur5e_robot', '-topic', 'robot_description', '-x', '0.0', '-y', '0.0', '-z', '0.0'],
+        arguments=['-name', 'ur5e_robot', '-topic', 'robot_description', '-x', '0.0', '-y', '0.0', '-z', '1.0'],
         output='screen'
     )
 
@@ -66,7 +66,9 @@ def generate_launch_description():
     # --- COORDINATE SCACCHIERA (Tavolo sul pavimento, superficie = 0.556631) ---
     BOARD_X = -0.5
     BOARD_Y = -0.15
-    BOARD_Z = 0 
+    BOARD_Z = 1.2
+    BOARD_ROLL = 0  # 90 gradi in radianti, per allineare con il pavimento
+    BOARD_PITCH = 0  # 90 gradi in radianti, per allineare con il pavimento
     BOARD_YAW = 3.14159  # 180 gradi in radianti, per allineare con il robot 
 
     # Spawn Scacchiera Indipendente
@@ -77,7 +79,7 @@ def generate_launch_description():
         arguments=[
             '-name', 'chessboard',
             '-string', chessboard_description,
-            '-x', str(BOARD_X), '-y', str(BOARD_Y), '-z', str(BOARD_Z), '-Y', str(BOARD_YAW)
+            '-x', str(BOARD_X), '-y', str(BOARD_Y), '-z', str(BOARD_Z), '-R', str(BOARD_ROLL), '-P', str(BOARD_PITCH), '-Y', str(BOARD_YAW)
         ],
         output='screen'
     )

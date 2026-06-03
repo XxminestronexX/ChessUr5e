@@ -50,6 +50,6 @@ def spawn_piece(name, row, col, mesh, color, type, is_black):
         'ros2', 'run', 'ros_gz_sim', 'create',
         '-name', name,
         '-string', subprocess.check_output(f"xacro {xacro_path} mesh_name:='{mesh}' color_rgba:='{color}'", shell=True).decode('utf-8'),
-        '-x', str(gx), '-y', str(gy), '-z', str(cz + 0.02), '-Y', str(yaw)
+        '-x', str(gx), '-y', str(gy), '-z', str(cz + 1.22), '-Y', str(yaw)
     ]
     subprocess.run(cmd, stdout=subprocess.DEVNULL)

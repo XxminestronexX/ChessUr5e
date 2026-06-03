@@ -43,7 +43,7 @@
 
    <link name="wall_link">
      <visual>
-       <origin xyz="0 0 1.0" rpy="0 0 0"/>
+       <origin xyz="0 0 0.0" rpy="0 0 0"/>
        <geometry>
          <box size="3.0 0.1 2.0"/> </geometry>
        <material name="WallWhite">
@@ -51,7 +51,7 @@
        </material>
      </visual>
      <collision>
-       <origin xyz="0 0 1.0" rpy="0 0 0"/>
+       <origin xyz="0 0 0.0" rpy="0 0 0"/>
        <geometry>
          <box size="3.0 0.1 2.0"/>
        </geometry>
