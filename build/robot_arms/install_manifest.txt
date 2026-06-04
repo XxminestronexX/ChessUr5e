@@ -34,6 +34,7 @@
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/camera/d435.dae
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/regina.stl
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/pedone.stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/pedone_5cm_fide.stl
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/chessboard.obj
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/torre_fide.stl
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/regina_fide.stl
@@ -47,6 +48,7 @@
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/alfiere_fide.stl
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/cavallo.stl
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/bishop_Rev01.stl
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/scacchi/cavallo_fide.stl
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/mount/realsenseURflangeSupport.stl
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/mount/images/realsenseURflangeSupportNerdy.png
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/mount/images/bb93dee9-e9f3-4dae-a699-27ad095fd9d5.jpg

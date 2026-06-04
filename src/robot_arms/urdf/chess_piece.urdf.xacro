@@ -3,16 +3,28 @@
 
   <xacro:arg name="mesh_name" default="pedone_fide.stl"/>
   <xacro:arg name="color_rgba" default="1.0 1.0 1.0 1.0"/>
+  <xacro:arg name="piece_type" default="p"/>
+
+  <xacro:property name="piece_data" value="${dict(
+      p=dict(vx=0.0,    vy=0.0, vz=0.0, c_rad=0.013, c_len=0.05,  c_z=0.025),
+      r=dict(vx=0.0,    vy=0.0, vz=0.0, c_rad=0.015, c_len=0.055, c_z=0.0275),
+      n=dict(vx=0.0,    vy=0.0, vz=0.0, c_rad=0.015, c_len=0.06,  c_z=0.03),
+      b=dict(vx=0.0,    vy=0.0, vz=0.0, c_rad=0.015, c_len=0.07,  c_z=0.035),
+      q=dict(vx=0.0,    vy=0.0, vz=0.0, c_rad=0.018, c_len=0.08,  c_z=0.04),
+      k=dict(vx=0.0,    vy=0.0, vz=0.0, c_rad=0.018, c_len=0.09,  c_z=0.045)
+  )}"/>
+  
+  <xacro:property name="data" value="${piece_data['$(arg piece_type)']}"/>
 
   <link name="piece_base_link">
     <inertial>
-      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+      <origin xyz="0 0 ${data['c_z']}" rpy="0 0 0"/>
       <mass value="0.05"/>
       <inertia ixx="0.00001" ixy="0.0" ixz="0.0" iyy="0.00001" iyz="0.0" izz="0.00001"/>
     </inertial>
     
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="${data['vx']} ${data['vy']} ${data['vz']}" rpy="0 0 0"/>
       <geometry>
         <mesh filename="package://robot_arms/meshes/scacchi/$(arg mesh_name)" scale="0.001 0.001 0.001"/>
       </geometry>
@@ -22,9 +34,9 @@
     </visual>
     
     <collision>
-      <origin xyz="0 0 0.025" rpy="0 0 0"/>
+      <origin xyz="0 0 ${data['c_z']}" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.018" length="0.05"/>
+        <cylinder radius="${data['c_rad']}" length="${data['c_len']}"/>
       </geometry>
     </collision>
   </link>
