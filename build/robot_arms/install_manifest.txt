@@ -1,5 +1,9 @@
+/home/dav/braccio_ws/install/robot_arms/lib/robot_arms/workspace_visualizer.py
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//launch/ur5e_gazebo_vertical.launch.py
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//launch/ur5e_description.launch.py
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//launch/ur5e_workspace.launch.py
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//launch/ur5e_gazebo.launch.py
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//launch/ur5e_gazebo_backup.launch.py
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//config/gripper/hande_parameters.yaml
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//config/uclv_right_ur5e_kinematics.yaml
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//config/uclv_left_ur5e_kinematics,yaml
@@ -55,6 +59,7 @@
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/mount/images/Drawing.jpeg
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//meshes/mount/images/realsenseURflangeSupport.png
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//rviz/view_robot.rviz
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//rviz/workspace_view.rviz
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//materials/textures/aruco_0.png
 /home/dav/braccio_ws/install/robot_arms/share/ament_index/resource_index/package_run_dependencies/robot_arms
 /home/dav/braccio_ws/install/robot_arms/share/ament_index/resource_index/parent_prefix_path/robot_arms

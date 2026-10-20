@@ -208,7 +208,7 @@
       <parent link="${prefix}base_link"/>
       <child link="${prefix}jaw1_link"/>
       <axis xyz="1 0 0"/>
-      <limit effort="${max_effort}" lower="0.0" upper="${upper_limit}" velocity="0.15"/>
+      <limit effort="${max_effort}" lower="-0.015" upper="${upper_limit}" velocity="0.15"/>
     </joint>
 
     <joint name="${prefix}base_to_${prefix}jaw2_link" type="prismatic">
@@ -216,8 +216,7 @@
       <parent link="${prefix}base_link"/>
       <child link="${prefix}jaw2_link"/>
       <axis xyz="1 0 0"/>
-      <limit effort="${max_effort}" lower="0.0" upper="${upper_limit}" velocity="0.15"/>
-      <mimic joint="${prefix}joint" multiplier="1" offset="0"/>
+      <limit effort="${max_effort}" lower="-0.015" upper="${upper_limit}" velocity="0.15"/>
     </joint>
 
     <joint name="${prefix}jaw1_to_finger1" type="fixed">
@@ -231,6 +230,20 @@
       <parent link="${prefix}jaw2_link"/>
       <child link="${prefix}finger2"/>
     </joint>
+
+    <gazebo reference="${prefix}finger1">
+      <mu1>5.0</mu1>
+      <mu2>5.0</mu2>
+      <kp>1000000.0</kp>
+      <kd>10.0</kd>
+    </gazebo>
+
+    <gazebo reference="${prefix}finger2">
+      <mu1>5.0</mu1>
+      <mu2>5.0</mu2>
+      <kp>1000000.0</kp>
+      <kd>10.0</kd>
+    </gazebo>
     
   </xacro:macro>
 </robot>

@@ -48,11 +48,14 @@ def generate_launch_description():
         output='screen'
     )
 
-    # Bridge ROS-Gazebo
+    # Bridge ROS-Gazebo (Clock + SetEntityPose per presa pezzi fluida)
     clock_bridge = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
-        arguments=['/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock'],
+        arguments=[
+            '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
+            '/world/empty/set_pose@ros_gz_interfaces/srv/SetEntityPose',
+        ],
         output='screen'
     )
 
@@ -63,12 +66,15 @@ def generate_launch_description():
         Node(package="controller_manager", executable="spawner", arguments=["gripper_controller"])
     ]
 
-    # --- COORDINATE SCACCHIERA (Tavolo sul pavimento, superficie = 0.556631) ---
-    BOARD_X = -0.5
-    BOARD_Y = -0.15
-    BOARD_Z = 1.2
-    BOARD_ROLL = 0  # 90 gradi in radianti, per allineare con il pavimento
-    BOARD_PITCH = 0  # 90 gradi in radianti, per allineare con il pavimento
+    # --- COORDINATE SCACCHIERA OTTIMIZZATE PER PICK & PLACE VERTICALE (64/64 CASELLE) ---
+    # Tavolo: in Gazebo il robot è spawnato a z=1.0, quindi il piano del tavolo è a z=1.0m.
+    # Posizione (-0.58, -0.22): garantisce 100% di raggiungibilità verticale (Roll=pi, Pitch=0)
+    # su tutte le 64 caselle sia in presa (Z=+0.035m) sia in hover (Z=+0.16m), lontano dalle singolarità.
+    BOARD_X = -0.58
+    BOARD_Y = -0.22
+    BOARD_Z = 1.01
+    BOARD_ROLL = 0.0
+    BOARD_PITCH = 0.0
     BOARD_YAW = 3.14159  # 180 gradi in radianti, per allineare con il robot 
 
     # Spawn Scacchiera Indipendente

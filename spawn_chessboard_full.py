@@ -20,7 +20,7 @@ def get_current_chessboard_pose():
     except Exception:
         pass
     # Fallback standard del launch file se non rilevata
-    return [-0.5, -0.15, 0.001], [0.0, 0.0, -1.5708]
+    return [-0.58, -0.22, 0.001], [0.0, 0.0, 3.14159]
 
 def main():
     # Rilevamento della posizione per la sostituzione dinamica

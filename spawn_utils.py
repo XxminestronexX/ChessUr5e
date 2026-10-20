@@ -22,7 +22,7 @@ def get_chessboard_world_pose():
                         return xyz[0], xyz[1], xyz[2], rpy[2]
         except Exception:
             continue
-    return -0.5, -0.15, 0.56, 0.0
+    return -0.58, -0.22, 1.006, 3.14159
 
 def spawn_piece(name, row, col, mesh, color, piece_type, is_black):
     pkg_share = get_package_share_directory('robot_arms')
@@ -45,7 +45,8 @@ def spawn_piece(name, row, col, mesh, color, piece_type, is_black):
     PIECE_YAW_OFFSET = 1.5708
     yaw = cb_yaw + PIECE_YAW_OFFSET + (math.pi if is_black else 0.0)
     
-    spawn_z = cz + 0.02
+    # Posa Z esattamente sopra il piano superiore della scacchiera (1.25cm spessore + 2mm margine)
+    spawn_z = cz + 0.0145
     
     print(f"[DEBUG] Spawnando {name} (Tipo: {piece_type}): row={row}, col={col}")
     

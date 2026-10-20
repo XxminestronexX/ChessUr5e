@@ -11,7 +11,12 @@ find_package(ament_cmake REQUIRED)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
-# Install launch files.
+# Install launch files and scripts.
+install(PROGRAMS
+  scripts/workspace_visualizer.py
+  DESTINATION lib/${PROJECT_NAME}/
+)
+
 install(DIRECTORY
   launch
   config
