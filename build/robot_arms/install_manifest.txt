@@ -1,7 +1,10 @@
 /home/dav/braccio_ws/install/robot_arms/lib/robot_arms/workspace_visualizer.py
+/home/dav/braccio_ws/install/robot_arms/lib/robot_arms/moveit_uci_mover.py
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//launch/ur5e_gazebo_vertical.launch.py
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//launch/ur5e_description.launch.py
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//launch/move_group.launch.py
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//launch/ur5e_workspace.launch.py
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//launch/ur5e_moveit_gazebo.launch.py
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//launch/ur5e_gazebo.launch.py
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//launch/ur5e_gazebo_backup.launch.py
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//config/gripper/hande_parameters.yaml
@@ -11,6 +14,11 @@
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//config/ur5e/joint_limits.yaml
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//config/ur5e/physical_parameters.yaml
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//config/ur5e/visual_parameters.yaml
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//config/moveit/joint_limits.yaml
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//config/moveit/ur5e.srdf
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//config/moveit/ompl_planning.yaml
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//config/moveit/kinematics.yaml
+/home/dav/braccio_ws/install/robot_arms/share/robot_arms//config/moveit/moveit_controllers.yaml
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//urdf/chessboard.urdf.xacro
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//urdf/uclv_left_ur5e.urdf.xacro
 /home/dav/braccio_ws/install/robot_arms/share/robot_arms//urdf/robotiq_hande.urdf.xacro

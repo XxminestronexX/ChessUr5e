@@ -14,6 +14,7 @@ find_package(ament_cmake REQUIRED)
 # Install launch files and scripts.
 install(PROGRAMS
   scripts/workspace_visualizer.py
+  scripts/moveit_uci_mover.py
   DESTINATION lib/${PROJECT_NAME}/
 )
 

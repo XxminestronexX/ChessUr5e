@@ -43,7 +43,10 @@ if(NOT DEFINED CMAKE_OBJDUMP)
 endif()
 
 if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/robot_arms" TYPE PROGRAM FILES "/home/dav/braccio_ws/src/robot_arms/scripts/workspace_visualizer.py")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/robot_arms" TYPE PROGRAM FILES
+    "/home/dav/braccio_ws/src/robot_arms/scripts/workspace_visualizer.py"
+    "/home/dav/braccio_ws/src/robot_arms/scripts/moveit_uci_mover.py"
+    )
 endif()
 
 if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)

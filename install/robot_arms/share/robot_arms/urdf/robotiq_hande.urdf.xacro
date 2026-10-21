@@ -231,6 +231,14 @@
       <child link="${prefix}finger2"/>
     </joint>
 
+    <!-- Frame TCP esatto al centro dei polpastrelli della pinza (usato da MoveIt 2 per IK e traiettorie cartesiane) -->
+    <link name="${prefix}tcp_link"/>
+    <joint name="${prefix}tool0_to_tcp" type="fixed">
+      <origin rpy="0 0 0" xyz="0 0 0.225"/>
+      <parent link="${origin}"/>
+      <child link="${prefix}tcp_link"/>
+    </joint>
+
     <gazebo reference="${prefix}finger1">
       <mu1>5.0</mu1>
       <mu2>5.0</mu2>

@@ -1,0 +1,32 @@
+trajectory_execution:
+  allowed_execution_duration_scaling: 4.0
+  allowed_goal_duration_margin: 2.0
+  allowed_start_tolerance: 0.05
+  execution_duration_monitoring: false
+
+moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControllerManager
+
+moveit_simple_controller_manager:
+  controller_names:
+    - arm_controller
+    - gripper_controller
+
+  arm_controller:
+    action_ns: follow_joint_trajectory
+    type: FollowJointTrajectory
+    default: true
+    joints:
+      - shoulder_pan_joint
+      - shoulder_lift_joint
+      - elbow_joint
+      - wrist_1_joint
+      - wrist_2_joint
+      - wrist_3_joint
+
+  gripper_controller:
+    action_ns: follow_joint_trajectory
+    type: FollowJointTrajectory
+    default: true
+    joints:
+      - hande_joint
+      - hande_base_to_hande_jaw2_link
