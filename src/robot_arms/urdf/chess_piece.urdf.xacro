@@ -32,20 +32,10 @@
         <color rgba="$(arg color_rgba)"/>
       </material>
     </visual>
-    
-    <collision>
-      <origin xyz="0 0 ${data['c_z']}" rpy="0 0 0"/>
-      <geometry>
-        <cylinder radius="${data['c_rad']}" length="${data['c_len']}"/>
-      </geometry>
-    </collision>
   </link>
 
-  <gazebo reference="piece_base_link">
-    <mu1>1.5</mu1>
-    <mu2>1.5</mu2>
-    <kp>1000000.0</kp>
-    <kd>1.0</kd>
+  <gazebo>
+    <static>true</static>
   </gazebo>
 
 </robot>

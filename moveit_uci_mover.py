@@ -311,9 +311,9 @@ class MoveItUCIChessMover(Node):
         name_map = dict(zip(res.solution.joint_trajectory.joint_names, target_q))
         ordered_target = [name_map[j] for j in self.joint_names]
         t_wait = time.monotonic()
-        while rclpy.ok() and (time.monotonic() - t_wait) < 4.0:
-            rclpy.spin_once(self, timeout_sec=0.05)
-            if max(abs(self.current_q[i] - ordered_target[i]) for i in range(6)) < 0.025:
+        while rclpy.ok() and (time.monotonic() - t_wait) < 1.5:
+            rclpy.spin_once(self, timeout_sec=0.02)
+            if max(abs(self.current_q[i] - ordered_target[i]) for i in range(6)) < 0.03:
                 break
 
     def moveit_move_to_joint_pose(self, q_target):
@@ -347,7 +347,7 @@ class MoveItUCIChessMover(Node):
         res_fut = gh.get_result_async()
         rclpy.spin_until_future_complete(self, res_fut)
 
-    def set_gripper(self, stroke_val, duration_sec=0.7):
+    def set_gripper(self, stroke_val, duration_sec=0.35):
         goal = FollowJointTrajectory.Goal()
         goal.trajectory.joint_names = ['hande_joint', 'hande_base_to_hande_jaw2_link']
 
@@ -383,32 +383,32 @@ class MoveItUCIChessMover(Node):
         grasp_z = board_z + grasp_offset
 
         # 1. Apertura pinza e traslazione aerea sopra la casella di partenza
-        self.set_gripper(0.012, duration_sec=0.6)
+        self.set_gripper(0.012, duration_sec=0.35)
         self.get_logger().info(f'   [MoveIt 2] Approccio aereo verticale sopra ({src_x:.3f}, {src_y:.3f}, Z={hover_z*1000:.0f}mm)...')
-        self.moveit_plan_and_execute_cartesian([self.make_vertical_pose(src_x, src_y, hover_z)], max_step=0.015, duration_scale=1.5)
+        self.moveit_plan_and_execute_cartesian([self.make_vertical_pose(src_x, src_y, hover_z)], max_step=0.015, duration_scale=0.8)
 
         # 2. Discesa cartesiana 100% verticale sul pezzo
         self.get_logger().info(f'   [MoveIt 2] Discesa cartesiana VERTICALE sul pezzo {piece_name} (Z={grasp_z*1000:.0f}mm)...')
-        self.moveit_plan_and_execute_cartesian([self.make_vertical_pose(src_x, src_y, grasp_z)], max_step=0.01, duration_scale=1.5)
+        self.moveit_plan_and_execute_cartesian([self.make_vertical_pose(src_x, src_y, grasp_z)], max_step=0.01, duration_scale=0.6)
 
         # 3. Chiusura pinza e aggancio pezzo
         self.get_logger().info(f'   [MoveIt 2] Presa {piece_name}...')
-        self.set_gripper(-0.002, duration_sec=0.7)
+        self.set_gripper(-0.002, duration_sec=0.35)
         self.piece_z_offset = -grasp_offset
         self.attached_is_black = is_black
         self.attached_piece = piece_name
 
         # 4. Sollevamento cartesiano 100% verticale
         self.get_logger().info(f'   [MoveIt 2] Sollevamento cartesiano VERTICALE a Z={hover_z*1000:.0f}mm...')
-        self.moveit_plan_and_execute_cartesian([self.make_vertical_pose(src_x, src_y, hover_z)], max_step=0.01, duration_scale=1.5)
+        self.moveit_plan_and_execute_cartesian([self.make_vertical_pose(src_x, src_y, hover_z)], max_step=0.01, duration_scale=0.6)
 
         # 5. Trasporto aereo rettilineo sopra la destinazione (a quota costante +160 mm)
         self.get_logger().info(f'   [MoveIt 2] Trasporto aereo sopra destinazione ({dst_x:.3f}, {dst_y:.3f}, Z={hover_z*1000:.0f}mm)...')
-        self.moveit_plan_and_execute_cartesian([self.make_vertical_pose(dst_x, dst_y, hover_z)], max_step=0.015, duration_scale=1.5)
+        self.moveit_plan_and_execute_cartesian([self.make_vertical_pose(dst_x, dst_y, hover_z)], max_step=0.015, duration_scale=0.8)
 
         # 6. Discesa cartesiana 100% verticale sulla destinazione
         self.get_logger().info(f'   [MoveIt 2] Discesa cartesiana VERTICALE di deposito (Z={(grasp_z+0.001)*1000:.0f}mm)...')
-        self.moveit_plan_and_execute_cartesian([self.make_vertical_pose(dst_x, dst_y, grasp_z + 0.001)], max_step=0.01, duration_scale=1.5)
+        self.moveit_plan_and_execute_cartesian([self.make_vertical_pose(dst_x, dst_y, grasp_z + 0.001)], max_step=0.01, duration_scale=0.6)
 
         # 7. Rilascio del pezzo e apertura pinza
         self.get_logger().info(f'   [MoveIt 2] Rilascio {piece_name}...')
@@ -423,11 +423,11 @@ class MoveItUCIChessMover(Node):
             req.pose.orientation.z = math.sin(yaw / 2.0)
             req.pose.orientation.w = math.cos(yaw / 2.0)
             self.set_pose_client.call_async(req)
-        self.set_gripper(0.012, duration_sec=0.6)
+        self.set_gripper(0.012, duration_sec=0.35)
 
         # 8. Risalita cartesiana 100% verticale di disimpegno
         self.get_logger().info(f'   [MoveIt 2] Risalita cartesiana VERTICALE di disimpegno (Z={hover_z*1000:.0f}mm)...')
-        self.moveit_plan_and_execute_cartesian([self.make_vertical_pose(dst_x, dst_y, hover_z)], max_step=0.01, duration_scale=1.4)
+        self.moveit_plan_and_execute_cartesian([self.make_vertical_pose(dst_x, dst_y, hover_z)], max_step=0.01, duration_scale=0.6)
 
     def execute_uci_move(self, uci_move: str):
         uci_move = uci_move.strip().lower()

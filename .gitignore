@@ -1,8 +1,43 @@
-# Ignora le cartelle di configurazione e di build
-.vscode/
-log/*
-build/*
-install/*
+# ==========================================
+# ROS 2 & Colcon Build Artifacts
+# ==========================================
+build/
+install/
+log/
+COLCON_IGNORE
+AMENT_IGNORE
 
-# Opzionale: ignora anche i singoli file .log ovunque si trovino
+# ==========================================
+# Python Bytecode & Cache
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+
+# ==========================================
+# IDE & Editor files
+# ==========================================
+.vscode/
+.idea/
+*.swp
+*~
+*.bak
+
+# ==========================================
+# Archivi, Dump e File compressi
+# ==========================================
+*.tar.gz
+*.tar
+*.zip
+*.gz
+*.bz2
+
+# ==========================================
+# Log & OS generated files
+# ==========================================
 *.log
+.DS_Store
+Thumbs.db
