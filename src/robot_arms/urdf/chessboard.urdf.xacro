@@ -48,7 +48,7 @@
   <joint name="aruco_to_a1" type="fixed">
     <parent link="aruco_marker_link"/>
     <child link="a1_square_link"/>
-    <origin xyz="-0.0805 -0.0305 0" rpy="0 0 0"/>
+    <origin xyz="-0.0671 -0.01255 0" rpy="0 0 0"/>
   </joint>
 
   <gazebo reference="aruco_marker_link">

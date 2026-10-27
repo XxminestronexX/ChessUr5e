@@ -11,7 +11,7 @@ class SimCameraPerception(Node):
     def __init__(self):
         super().__init__('sim_camera_perception')
         self.tf_broadcaster = tf2_ros.TransformBroadcaster(self)
-        self.SQUARE_SIZE = 0.057
+        self.SQUARE_SIZE = 0.05875
         self.pieces_map = self._build_chess_matrix()
         self.timer = self.create_timer(0.05, self.perception_loop)
         self.get_logger().info("📷 Telecamera Intel RealSense Attiva: Flusso TF Eseguito!")

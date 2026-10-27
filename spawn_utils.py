@@ -30,9 +30,10 @@ def spawn_piece(name, row, col, mesh, color, piece_type, is_black):
     
     cx, cy, cz, cb_yaw = get_chessboard_world_pose()
     
-    SQUARE_SIZE = 0.057
-    A1_X = 0.1995
-    A1_Y = 0.1995
+    # Dimensioni esatte estratte dalla mesh 3D della scacchiera (chessboard.obj)
+    SQUARE_SIZE = 0.05875
+    A1_X = 0.21290
+    A1_Y = 0.21745
     
     # Calcolo coordinate Locali pulito
     lx = A1_X - (col * SQUARE_SIZE) 

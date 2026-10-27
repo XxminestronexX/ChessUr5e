@@ -18,6 +18,7 @@ Uso:
 import sys
 import time
 import math
+import re
 import subprocess
 import numpy as np
 import PyKDL
@@ -191,9 +192,10 @@ class MoveItUCIChessMover(Node):
     def square_to_world_xy(self, sq_str: str):
         row, col = self.uci_square_to_row_col(sq_str)
         cx, cy, cz_gz, cb_yaw = get_chessboard_world_pose()
-        SQUARE_SIZE = 0.057
-        A1_X = 0.1995
-        A1_Y = 0.1995
+        # Dimensioni esatte estratte dalla mesh 3D della scacchiera (chessboard.obj)
+        SQUARE_SIZE = 0.05875
+        A1_X = 0.21290
+        A1_Y = 0.21745
 
         lx = A1_X - (col * SQUARE_SIZE)
         ly = A1_Y - (row * SQUARE_SIZE)
@@ -267,7 +269,7 @@ class MoveItUCIChessMover(Node):
         req.waypoints = waypoints
         req.max_step = float(max_step)
         req.jump_threshold = 0.0
-        req.avoid_collisions = True
+        req.avoid_collisions = False
 
         future = self.cartesian_client.call_async(req)
         rclpy.spin_until_future_complete(self, future)
@@ -522,35 +524,72 @@ class MoveItUCIChessMover(Node):
         self.get_logger().info('✅ MoveIt 2 e Gazebo pronti!')
 
 
+def parse_uci_sequence(text_or_list):
+    """
+    Estrae una lista ordinata di mosse UCI da stringhe, liste o notazioni con numeri/virgole.
+    Esempi supportati:
+      - ['e2e4', 'e7e5', 'g1f3']
+      - 'e2e4 e7e5 g1f3'
+      - '1. e2e4 e7e5 2. g1f3 b8c6'
+      - 'e2e4, e7e5, g1f3'
+    """
+    if isinstance(text_or_list, list):
+        combined = ' '.join(text_or_list)
+    else:
+        combined = str(text_or_list)
+
+    raw_tokens = combined.replace(',', ' ').split()
+    moves = []
+    for tok in raw_tokens:
+        tok = tok.strip().lower()
+        tok = re.sub(r'^\d+\.?', '', tok).strip()
+        if not tok:
+            continue
+        if len(tok) in (4, 5) and tok[0] in 'abcdefgh' and tok[1] in '12345678' and tok[2] in 'abcdefgh' and tok[3] in '12345678':
+            moves.append(tok)
+    return moves
+
+
 def main(args=None):
     rclpy.init(args=args)
     node = MoveItUCIChessMover()
     try:
         node.wait_ready()
 
-        cli_moves = [a for a in sys.argv[1:] if not a.startswith('-')]
+        cli_args = [a for a in sys.argv[1:] if not a.startswith('-')]
+        cli_moves = parse_uci_sequence(cli_args) if cli_args else []
+
         if cli_moves:
-            # Esegue tutte le mosse passate da riga di comando (es: python3 moveit_uci_mover.py e2e4 e7e5 g1f3)
-            for m in cli_moves:
+            print(f"♟️ Sequenza di {len(cli_moves)} mosse da eseguire: {' -> '.join([m.upper() for m in cli_moves])}")
+            for idx, m in enumerate(cli_moves, 1):
+                print(f"\n▶️ [{idx}/{len(cli_moves)}] Esecuzione mossa: {m.upper()}")
                 node.execute_uci_move(m)
         else:
             # Modalità interattiva da terminale
             print("\n" + "=" * 65)
             print("♟️  CONSOLE INTERATTIVA MOSSE UCI CON MOVEIT 2 (UR5e + Hand-E)  ♟️")
             print("=" * 65)
-            print("Inserisci una mossa in notazione UCI (es. 'e2e4', 'g1f3', 'b8c6')")
+            print("Inserisci una mossa o sequenza UCI (es. 'e2e4' o 'e2e4 e7e5 g1f3')")
             print("oppure 'q' per uscire.\n")
             while rclpy.ok():
                 try:
-                    user_in = input("👉 Inserisci mossa UCI (es. e2e4): ").strip()
+                    user_in = input("👉 Inserisci mossa/sequenza UCI: ").strip()
                 except EOFError:
                     break
                 if not user_in or user_in.lower() in ('q', 'quit', 'exit'):
                     break
-                try:
-                    node.execute_uci_move(user_in)
-                except Exception as e:
-                    node.get_logger().error(f"Errore durante la mossa '{user_in}': {e}")
+                moves = parse_uci_sequence(user_in)
+                if not moves:
+                    print(f"⚠️ Nessuna mossa UCI valida trovata in '{user_in}'. Esempio valido: e2e4 oppure e2e4 e7e5 g1f3")
+                    continue
+                for idx, m in enumerate(moves, 1):
+                    if len(moves) > 1:
+                        print(f"\n▶️ [{idx}/{len(moves)}] Esecuzione mossa: {m.upper()}")
+                    try:
+                        node.execute_uci_move(m)
+                    except Exception as e:
+                        node.get_logger().error(f"Errore durante la mossa '{m}': {e}")
+                        break
     except KeyboardInterrupt:
         pass
     finally:
