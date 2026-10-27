@@ -181,7 +181,7 @@ class PickPlaceE2E4Node(Node):
         gx = cx + (lx * math.cos(cb_yaw)) - (ly * math.sin(cb_yaw))
         gy = cy + (lx * math.sin(cb_yaw)) + (ly * math.cos(cb_yaw))
 
-        board_top_z = (cz_gz - 1.0) + 0.00625
+        board_top_z = (cz_gz - 1.0) + 0.0012
         return gx, gy, board_top_z
 
     def wait_sim_seconds(self, sim_sec):
@@ -290,7 +290,7 @@ class PickPlaceE2E4Node(Node):
             req_reset.entity.name = 'white_pawn_4'
             req_reset.pose.position.x = float(e2_x)
             req_reset.pose.position.y = float(e2_y)
-            req_reset.pose.position.z = float(board_z + 1.0 + 0.001)
+            req_reset.pose.position.z = float(board_z + 1.0 + 0.0002)
             req_reset.pose.orientation.z = math.sin(-math.pi / 4.0)
             req_reset.pose.orientation.w = math.cos(-math.pi / 4.0)
             self.set_pose_client.call_async(req_reset)

@@ -46,8 +46,8 @@ def spawn_piece(name, row, col, mesh, color, piece_type, is_black):
     PIECE_YAW_OFFSET = 1.5708
     yaw = cb_yaw + PIECE_YAW_OFFSET + (math.pi if is_black else 0.0)
     
-    # Posa Z esattamente sopra il piano superiore della scacchiera (1.25cm spessore + 2mm margine)
-    spawn_z = cz + 0.0145
+    # Posa Z a filo con il piano superiore della scacchiera visuale (spessore mesh top = +0.0012)
+    spawn_z = cz + 0.0014
     
     print(f"[DEBUG] Spawnando {name} (Tipo: {piece_type}): row={row}, col={col}")
     

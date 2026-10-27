@@ -202,7 +202,7 @@ class MoveItUCIChessMover(Node):
 
         gx = cx + (lx * math.cos(cb_yaw)) - (ly * math.sin(cb_yaw))
         gy = cy + (lx * math.sin(cb_yaw)) + (ly * math.cos(cb_yaw))
-        board_top_z = (cz_gz - 1.0) + 0.00625
+        board_top_z = (cz_gz - 1.0) + 0.0012
         return gx, gy, board_top_z
 
     def js_callback(self, msg: JointState):
@@ -420,7 +420,7 @@ class MoveItUCIChessMover(Node):
             req.entity.name = piece_name
             req.pose.position.x = float(dst_x)
             req.pose.position.y = float(dst_y)
-            req.pose.position.z = float(board_z + 1.0 + 0.001)
+            req.pose.position.z = float(board_z + 1.0 + 0.0002)
             yaw = math.pi / 2.0 if is_black else -math.pi / 2.0
             req.pose.orientation.z = math.sin(yaw / 2.0)
             req.pose.orientation.w = math.cos(yaw / 2.0)
@@ -449,7 +449,7 @@ class MoveItUCIChessMover(Node):
                 req_init.entity.name = piece_name
                 req_init.pose.position.x = float(src_x)
                 req_init.pose.position.y = float(src_y)
-                req_init.pose.position.z = float(board_z + 1.0 + 0.001)
+                req_init.pose.position.z = float(board_z + 1.0 + 0.0002)
                 req_init.pose.orientation.z = math.sin(-math.pi / 4.0)
                 req_init.pose.orientation.w = math.cos(-math.pi / 4.0)
                 self.set_pose_client.call_async(req_init)
@@ -466,9 +466,66 @@ class MoveItUCIChessMover(Node):
             f"♟️ Esecuzione mossa UCI '{uci_move.upper()}': pezzo '{piece_name}' ({ptype}) da {src_sq.upper()} a {dst_sq.upper()}"
         )
 
-        # Se la casella di destinazione è occupata (CATTURA!), prima rimuove verticalmente il pezzo avversario
-        # e lo deposita a bordo scacchiera (zona cimitero pezzi catturati)
-        if dst_sq in self.board_state:
+        # Rilevamento Arrocco (Castling): Re che si muove di 2 caselle in orizzontale
+        src_row, src_col = self.uci_square_to_row_col(src_sq)
+        dst_row, dst_col = self.uci_square_to_row_col(dst_sq)
+        is_castling = (ptype == 'king' and abs(dst_col - src_col) == 2)
+        rook_info = None
+
+        if is_castling:
+            if dst_col > src_col:
+                # Arrocco corto (Kingside): Torre colonna h -> colonna f
+                rook_src_sq = f"h{src_row + 1}"
+                rook_dst_sq = f"f{src_row + 1}"
+            else:
+                # Arrocco lungo (Queenside): Torre colonna a -> colonna d
+                rook_src_sq = f"a{src_row + 1}"
+                rook_dst_sq = f"d{src_row + 1}"
+
+            r_src_x, r_src_y, _ = self.square_to_world_xy(rook_src_sq)
+            r_dst_x, r_dst_y, _ = self.square_to_world_xy(rook_dst_sq)
+            if rook_src_sq in self.board_state:
+                r_name, r_type, r_black = self.board_state[rook_src_sq]
+            else:
+                r_name, r_type, r_black = self.find_piece_at_gazebo_xy(r_src_x, r_src_y)
+
+            rook_info = (r_name, r_type, r_black, rook_src_sq, rook_dst_sq, r_src_x, r_src_y, r_dst_x, r_dst_y)
+            self.get_logger().info(
+                f"🏰 ARROCCO RILEVATO: Re ({piece_name}) muove di 2 caselle {src_sq.upper()}->{dst_sq.upper()} | "
+                f"Torre '{r_name}' da {rook_src_sq.upper()} a {rook_dst_sq.upper()}"
+            )
+
+        # Se si tratta di En Passant oppure la casella di destinazione è occupata (CATTURA!),
+        # prima rimuove verticalmente il pezzo avversario e lo deposita nella zona catture
+        is_en_passant = (
+            ptype == 'pawn' and
+            abs(dst_col - src_col) == 1 and
+            abs(dst_row - src_row) == 1 and
+            dst_sq not in self.board_state
+        )
+
+        if is_en_passant:
+            ep_cap_sq = f"{chr(ord('a') + dst_col)}{src_row + 1}"
+            ep_x, ep_y, _ = self.square_to_world_xy(ep_cap_sq)
+            if ep_cap_sq in self.board_state:
+                cap_name, cap_type, cap_black = self.board_state[ep_cap_sq]
+            else:
+                cap_name, cap_type, cap_black = self.find_piece_at_gazebo_xy(ep_x, ep_y)
+
+            self.get_logger().info(
+                f"⚔️ EN PASSANT RILEVATO! Cattura al varco del pedone avversario '{cap_name}' in {ep_cap_sq.upper()}..."
+            )
+            side_key = 'black' if cap_black else 'white'
+            idx = self.captured_count[side_key]
+            self.captured_count[side_key] += 1
+            # Zona deposito pezzi catturati a sinistra della scacchiera (X = -0.86 m)
+            grave_x = -0.86
+            grave_y = -0.40 + idx * 0.045
+            self.pick_and_place_piece(cap_name, cap_type, cap_black, ep_x, ep_y, grave_x, grave_y, board_z)
+            if ep_cap_sq in self.board_state:
+                del self.board_state[ep_cap_sq]
+
+        elif dst_sq in self.board_state:
             cap_name, cap_type, cap_black = self.board_state[dst_sq]
             self.get_logger().info(f"⚔️ CATTURA RILEVATA in {dst_sq.upper()}: rimozione verticale di '{cap_name}'...")
             side_key = 'black' if cap_black else 'white'
@@ -480,7 +537,7 @@ class MoveItUCIChessMover(Node):
             self.pick_and_place_piece(cap_name, cap_type, cap_black, dst_x, dst_y, grave_x, grave_y, board_z)
             del self.board_state[dst_sq]
 
-        # Esegue il Pick & Place 100% verticale del pezzo da src_sq a dst_sq
+        # Esegue il Pick & Place 100% verticale del pezzo (o Re) da src_sq a dst_sq
         self.pick_and_place_piece(piece_name, ptype, is_black, src_x, src_y, dst_x, dst_y, board_z)
 
         # Aggiorna la mappa interna della scacchiera
@@ -488,11 +545,27 @@ class MoveItUCIChessMover(Node):
             del self.board_state[src_sq]
         self.board_state[dst_sq] = (piece_name, ptype, is_black)
 
+        # Se era un arrocco, sposta adesso la relativa torre
+        if rook_info is not None:
+            r_name, r_type, r_black, r_src_sq, r_dst_sq, r_src_x, r_src_y, r_dst_x, r_dst_y = rook_info
+            self.get_logger().info(
+                f"🏰 Completamento arrocco: spostamento della torre '{r_name}' da {r_src_sq.upper()} a {r_dst_sq.upper()}..."
+            )
+            self.pick_and_place_piece(r_name, r_type, r_black, r_src_x, r_src_y, r_dst_x, r_dst_y, board_z)
+            if r_src_sq in self.board_state:
+                del self.board_state[r_src_sq]
+            self.board_state[r_dst_sq] = (r_name, r_type, r_black)
+
         # Ritorna in posa Home Verticale sopra il centro della scacchiera
         cx, cy, _, _ = get_chessboard_world_pose()
         self.get_logger().info('🏠 Ritorno in Home Verticale sopra il centro scacchiera...')
         self.moveit_plan_and_execute_cartesian([self.make_vertical_pose(cx, cy, board_z + 0.19)], max_step=0.02, duration_scale=1.4)
-        self.get_logger().info(f"✅ Mossa UCI '{uci_move.upper()}' completata con MoveIt 2!")
+        if rook_info is not None:
+            self.get_logger().info(f"✅ Arrocco UCI '{uci_move.upper()}' (Re e Torre) completato con MoveIt 2!")
+        elif is_en_passant:
+            self.get_logger().info(f"✅ Presa En Passant '{uci_move.upper()}' (pedone catturato in {ep_cap_sq.upper()}) completata con MoveIt 2!")
+        else:
+            self.get_logger().info(f"✅ Mossa UCI '{uci_move.upper()}' completata con MoveIt 2!")
 
     def find_piece_at_gazebo_xy(self, target_x, target_y):
         """Se un pezzo è stato mosso prima di avviare il nodo, cerca tra i 32 modelli quello più vicino a (target_x, target_y)."""

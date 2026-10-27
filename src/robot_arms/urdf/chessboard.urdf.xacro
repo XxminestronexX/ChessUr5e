@@ -3,7 +3,7 @@
   
   <link name="chessboard_link">
     <inertial>
-      <origin xyz="0 0 0.0075" rpy="0 0 0"/>
+      <origin xyz="0.0068 0.0113 -0.00431" rpy="0 0 0"/>
       <mass value="1.5"/>
       <inertia ixx="0.03" ixy="0.0" ixz="0.0" iyy="0.03" iyz="0.0" izz="0.06"/>
     </inertial>
@@ -16,9 +16,9 @@
     </visual>
     
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0.0068 0.0113 -0.00431" rpy="0 0 0"/>
       <geometry>
-        <box size="0.51 0.51 0.0125"/>
+        <box size="0.51 0.51 0.01102"/>
       </geometry>
     </collision>
   </link>
@@ -30,17 +30,23 @@
 
   <link name="aruco_marker_link">
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 0.0005" rpy="0 0 0"/>
       <geometry>
         <box size="0.05 0.05 0.001"/> 
       </geometry>
     </visual>
+    <collision>
+      <origin xyz="0 0 0.0005" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.05 0.05 0.001"/> 
+      </geometry>
+    </collision>
   </link>
 
   <joint name="chessboard_to_aruco" type="fixed">
     <parent link="chessboard_link"/>
     <child link="aruco_marker_link"/>
-    <origin xyz="0.28 0.23 0.0155" rpy="0 0 0"/>
+    <origin xyz="0.28 0.23 0.0012" rpy="0 0 0"/>
   </joint>
 
   <link name="a1_square_link"/>
