@@ -82,6 +82,28 @@
     </joint>
     <link name="${prefix}camera_color_optical_frame"/>
 
+    <gazebo reference="${prefix}camera_link">
+      <sensor name="camera_d435" type="camera">
+        <camera>
+          <horizontal_fov>1.45</horizontal_fov>
+          <image>
+            <width>640</width>
+            <height>480</height>
+            <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.05</near>
+            <far>3.0</far>
+          </clip>
+        </camera>
+        <always_on>1</always_on>
+        <update_rate>15</update_rate>
+        <visualize>true</visualize>
+        <topic>/camera/image_raw</topic>
+        <pose>0 0.05 0.02 1.5708 -1.1822 1.5708</pose>
+      </sensor>
+    </gazebo>
+
     <joint name="${prefix}base_to_gripper" type="fixed">
       <origin rpy="0 0 0" xyz="0 0 0.005"/>
       <parent link="${origin}"/>

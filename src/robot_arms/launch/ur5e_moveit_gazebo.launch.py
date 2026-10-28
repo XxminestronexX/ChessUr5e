@@ -99,12 +99,14 @@ def generate_launch_description():
         parameters=[robot_description, {'use_sim_time': True}],
     )
 
+    world_sdf_path = os.path.join(pkg_share, 'worlds', 'chess_world.sdf')
+
     # Core Gazebo
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([os.path.join(
             FindPackageShare('ros_gz_sim').find('ros_gz_sim'), 'launch', 'gz_sim.launch.py'
         )]),
-        launch_arguments={'gz_args': '-r empty.sdf'}.items()
+        launch_arguments={'gz_args': f'-r {world_sdf_path}'}.items()
     )
 
     # Spawn Robot
@@ -115,7 +117,7 @@ def generate_launch_description():
         output='screen'
     )
 
-    # Bridge ROS-Gazebo (Clock + SetEntityPose + DeleteEntity per catture)
+    # Bridge ROS-Gazebo (Clock + SetEntityPose + DeleteEntity per catture + Camera D435)
     clock_bridge = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
@@ -123,6 +125,8 @@ def generate_launch_description():
             '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
             '/world/empty/set_pose@ros_gz_interfaces/srv/SetEntityPose',
             '/world/empty/remove@ros_gz_interfaces/srv/DeleteEntity',
+            '/camera/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
+            '/camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
         ],
         output='screen'
     )
@@ -155,6 +159,20 @@ def generate_launch_description():
         output='screen'
     )
 
+    camera_node = Node(
+        package='robot_arms',
+        executable='camera_board_recognition_node.py',
+        output='screen',
+        parameters=[{'use_sim_time': True}],
+    )
+
+    stockfish_node = Node(
+        package='robot_arms',
+        executable='stockfish_node.py',
+        output='screen',
+        parameters=[{'use_sim_time': True}],
+    )
+
     launch_nodes = [
         set_env_src,
         set_env_install,
@@ -164,6 +182,8 @@ def generate_launch_description():
         spawn_chessboard,
         clock_bridge,
         move_group_node,
+        camera_node,
+        stockfish_node,
     ] + controller_nodes
 
     return LaunchDescription(launch_nodes)

@@ -15,6 +15,8 @@ find_package(ament_cmake REQUIRED)
 install(PROGRAMS
   scripts/workspace_visualizer.py
   scripts/moveit_uci_mover.py
+  scripts/camera_board_recognition_node.py
+  scripts/stockfish_node.py
   DESTINATION lib/${PROJECT_NAME}/
 )
 
@@ -25,6 +27,7 @@ install(DIRECTORY
   meshes
   rviz
   materials
+  worlds
   DESTINATION share/${PROJECT_NAME}/
 )
 

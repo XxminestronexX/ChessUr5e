@@ -36,6 +36,7 @@ from moveit_msgs.srv import GetPositionIK, GetCartesianPath
 from moveit_msgs.action import ExecuteTrajectory, MoveGroup
 from moveit_msgs.msg import Constraints, JointConstraint, RobotState
 from ros_gz_interfaces.srv import SetEntityPose
+from std_srvs.srv import Trigger
 from urdf_parser_py.urdf import URDF
 
 from spawn_utils import get_chessboard_world_pose
@@ -112,6 +113,8 @@ class MoveItUCIChessMover(Node):
         # Action Client per il gripper e servizio Gazebo per posa pezzo
         self.gripper_client = ActionClient(self, FollowJointTrajectory, '/gripper_controller/follow_joint_trajectory')
         self.set_pose_client = self.create_client(SetEntityPose, '/world/empty/set_pose')
+        self.camera_client = self.create_client(Trigger, '/chessboard_camera/snapshot_and_recognize')
+        self.stockfish_client = self.create_client(Trigger, '/stockfish/compute_best_move')
 
     def build_fk_chain(self):
         urdf_str = subprocess.check_output(
@@ -556,16 +559,63 @@ class MoveItUCIChessMover(Node):
                 del self.board_state[r_src_sq]
             self.board_state[r_dst_sq] = (r_name, r_type, r_black)
 
-        # Ritorna in posa Home Verticale sopra il centro della scacchiera
+        # Ritorna in posa Home Panoramica (braccio a sinistra a X=-0.90m, camera puntata al centro)
         cx, cy, _, _ = get_chessboard_world_pose()
-        self.get_logger().info('🏠 Ritorno in Home Verticale sopra il centro scacchiera...')
-        self.moveit_plan_and_execute_cartesian([self.make_vertical_pose(cx, cy, board_z + 0.19)], max_step=0.02, duration_scale=1.4)
+        arm_left_x = cx - 0.32
+        self.set_gripper(0.0, duration_sec=0.25)
+        self.get_logger().info('🏠 Ritorno in Home Panoramica (braccio a sinistra, visuale libera su A4/A5)...')
+        self.moveit_plan_and_execute_cartesian([self.make_vertical_pose(arm_left_x, cy, board_z + 0.45)], max_step=0.02, duration_scale=1.4)
         if rook_info is not None:
             self.get_logger().info(f"✅ Arrocco UCI '{uci_move.upper()}' (Re e Torre) completato con MoveIt 2!")
         elif is_en_passant:
             self.get_logger().info(f"✅ Presa En Passant '{uci_move.upper()}' (pedone catturato in {ep_cap_sq.upper()}) completata con MoveIt 2!")
         else:
             self.get_logger().info(f"✅ Mossa UCI '{uci_move.upper()}' completata con MoveIt 2!")
+
+        # 📸 Scatto telecamera D435 in posa Home e riconoscimento FEN tramite ChessQueries
+        self.trigger_camera_recognition()
+
+    def get_stockfish_best_move(self):
+        """Richiede al nodo Stockfish 16 la contromossa migliore per il Nero basata sul FEN della camera."""
+        if not self.stockfish_client.service_is_ready():
+            self.get_logger().info("⏳ Connessione al nodo Stockfish 16 (/stockfish/compute_best_move)...")
+            self.stockfish_client.wait_for_service(timeout_sec=5.0)
+
+        if not self.stockfish_client.service_is_ready():
+            self.get_logger().error("❌ Servizio Stockfish non disponibile!")
+            return None
+
+        req = Trigger.Request()
+        fut = self.stockfish_client.call_async(req)
+        rclpy.spin_until_future_complete(self, fut, timeout_sec=15.0)
+        if fut.done() and fut.result():
+            res = fut.result()
+            if res.success:
+                return res.message.strip().lower()
+            else:
+                self.get_logger().warn(f"Stockfish: {res.message}")
+        return None
+
+    def trigger_camera_recognition(self):
+        """Richiede al nodo camera D435 uno snapshot e il riconoscimento FEN."""
+        if not self.camera_client.service_is_ready():
+            self.camera_client.wait_for_service(timeout_sec=1.5)
+
+        if self.camera_client.service_is_ready():
+            self.get_logger().info("📸 [Camera D435] Richiesta snapshot e riconoscimento ChessQueries in corso...")
+            req = Trigger.Request()
+            fut = self.camera_client.call_async(req)
+            rclpy.spin_until_future_complete(self, fut, timeout_sec=20.0)
+            if fut.done():
+                res = fut.result()
+                if res and res.success:
+                    self.get_logger().info(f"🎯 [Visione D435 + ChessQueries] {res.message}")
+                else:
+                    self.get_logger().warn(f"⚠️ Servizio camera: {res.message if res else 'Nessuna risposta'}")
+            else:
+                self.get_logger().warn("⚠️ Timeout attesa risposta da camera_board_recognition_node.")
+        else:
+            self.get_logger().info("ℹ️ Servizio camera non rilevato. Avvia 'camera_board_recognition_node.py' per il riconoscimento automatico.")
 
     def find_piece_at_gazebo_xy(self, target_x, target_y):
         """Se un pezzo è stato mosso prima di avviare il nodo, cerca tra i 32 modelli quello più vicino a (target_x, target_y)."""
@@ -638,31 +688,60 @@ def main(args=None):
                 print(f"\n▶️ [{idx}/{len(cli_moves)}] Esecuzione mossa: {m.upper()}")
                 node.execute_uci_move(m)
         else:
-            # Modalità interattiva da terminale
-            print("\n" + "=" * 65)
-            print("♟️  CONSOLE INTERATTIVA MOSSE UCI CON MOVEIT 2 (UR5e + Hand-E)  ♟️")
-            print("=" * 65)
-            print("Inserisci una mossa o sequenza UCI (es. 'e2e4' o 'e2e4 e7e5 g1f3')")
-            print("oppure 'q' per uscire.\n")
+            # Modalità interattiva partita Umano vs Stockfish con pulsante fine turno
+            print("\n" + "=" * 68)
+            print("♟️   PARTITA A SCACCHI: UMANO (BIANCO) vs ROBOT UR5e + STOCKFISH 16 (NERO)   ♟️")
+            print("=" * 68)
+            print("Modalità Turn-based con validazione visiva:")
+            print("  1. Tu (Umano) inserisci la tua mossa (es: 'e2e4').")
+            print("  2. Il robot UR5e la esegue per te (simulando la tua azione).")
+            print("  3. Il braccio risale in Home e la camera D435 fotografa la scacchiera.")
+            print("  4. ChessQueries riconosce il FEN aggiornato.")
+            print("  5. Confermi la fine del turno tramite il [PULSANTE INVIO].")
+            print("  6. Stockfish 16 calcola la mossa migliore ed il robot la esegue per il Nero!")
+            print("=" * 68)
+            print("Digita 'q' per uscire.\n")
+
             while rclpy.ok():
                 try:
-                    user_in = input("👉 Inserisci mossa/sequenza UCI: ").strip()
+                    user_move = input("\n👉 [TURNO UMANO - BIANCO] Inserisci la tua mossa (es. e2e4): ").strip()
                 except EOFError:
                     break
-                if not user_in or user_in.lower() in ('q', 'quit', 'exit'):
+                if not user_move or user_move.lower() in ('q', 'quit', 'exit'):
                     break
-                moves = parse_uci_sequence(user_in)
+
+                moves = parse_uci_sequence(user_move)
                 if not moves:
-                    print(f"⚠️ Nessuna mossa UCI valida trovata in '{user_in}'. Esempio valido: e2e4 oppure e2e4 e7e5 g1f3")
+                    print(f"⚠️ Mossa non valida: '{user_move}'. Esempio: e2e4")
                     continue
-                for idx, m in enumerate(moves, 1):
-                    if len(moves) > 1:
-                        print(f"\n▶️ [{idx}/{len(moves)}] Esecuzione mossa: {m.upper()}")
+
+                # Esegue la mossa dell'umano
+                for m in moves:
                     try:
                         node.execute_uci_move(m)
                     except Exception as e:
-                        node.get_logger().error(f"Errore durante la mossa '{m}': {e}")
+                        node.get_logger().error(f"Errore durante l'esecuzione della mossa '{m}': {e}")
                         break
+
+                # 🔘 PULSANTE FINE TURNO UMANO
+                print("\n" + "-" * 68)
+                print("📸 Il braccio è in Home Panoramica e la telecamera ha registrato la nuova posizione.")
+                btn = input("🔘 [PULSANTE FINE TURNO]: Premi [INVIO] per cedere il turno a Stockfish (oppure 'q' per uscire): ").strip()
+                if btn.lower() in ('q', 'quit', 'exit'):
+                    break
+
+                # Turno del Robot (Stockfish 16)
+                print("\n🤖 [TURNO ROBOT - NERO]: Stockfish 16 sta analizzando il FEN e calcolando la contromossa...")
+                best_move = node.get_stockfish_best_move()
+                if best_move:
+                    print(f"💡 Stockfish ha selezionato la mossa migliore: \033[1;32m{best_move.upper()}\033[0m")
+                    print(f"🦾 Il robot UR5e sta eseguendo la mossa di Stockfish...")
+                    try:
+                        node.execute_uci_move(best_move)
+                    except Exception as e:
+                        node.get_logger().error(f"Errore esecuzione mossa Stockfish '{best_move}': {e}")
+                else:
+                    print("⚠️ Stockfish non ha generato una mossa (partita finita o attesa posizione valida).")
     except KeyboardInterrupt:
         pass
     finally:

@@ -36,6 +36,22 @@ __pycache__/
 *.bz2
 
 # ==========================================
+# Checkpoint Pesi AI (HuggingFace / PyTorch)
+# ==========================================
+checkpoints/
+*.safetensors
+*.pt
+*.pth
+*.onnx
+
+# ==========================================
+# Snapshot e Immagini temporanee di runtime
+# ==========================================
+latest_chessboard_snapshot.jpg
+latest_recognition_viz.jpg
+test_camera_view.jpg
+
+# ==========================================
 # Log & OS generated files
 # ==========================================
 *.log
