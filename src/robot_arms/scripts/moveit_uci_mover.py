@@ -39,7 +39,7 @@ from ros_gz_interfaces.srv import SetEntityPose
 from std_srvs.srv import Trigger
 from urdf_parser_py.urdf import URDF
 
-from spawn_utils import get_chessboard_world_pose
+from spawn_utils import get_chessboard_world_pose, get_aruco_world_pose, get_photo_shoot_world_pose
 
 
 def urdf_pose_to_kdl_frame(origin):
@@ -559,12 +559,19 @@ class MoveItUCIChessMover(Node):
                 del self.board_state[r_src_sq]
             self.board_state[r_dst_sq] = (r_name, r_type, r_black)
 
-        # Ritorna in posa Home Panoramica (braccio a sinistra a X=-0.90m, camera puntata al centro)
-        cx, cy, _, _ = get_chessboard_world_pose()
-        arm_left_x = cx - 0.32
+        # Ritorna in posa Home Panoramica (ancorata rigidamente al marker ArUco)
+        px, py, pz, (qx, qy, qz, qw) = get_photo_shoot_world_pose()
         self.set_gripper(0.0, duration_sec=0.25)
-        self.get_logger().info('🏠 Ritorno in Home Panoramica (braccio a sinistra, visuale libera su A4/A5)...')
-        self.moveit_plan_and_execute_cartesian([self.make_vertical_pose(arm_left_x, cy, board_z + 0.45)], max_step=0.02, duration_scale=1.4)
+        self.get_logger().info(f'🏠 Ritorno in Home Panoramica ancorata ad ArUco (X={px:.3f}, Y={py:.3f}, Z={pz:.3f})...')
+        photo_pose = Pose()
+        photo_pose.position.x = float(px)
+        photo_pose.position.y = float(py)
+        photo_pose.position.z = float(pz)
+        photo_pose.orientation.x = float(qx)
+        photo_pose.orientation.y = float(qy)
+        photo_pose.orientation.z = float(qz)
+        photo_pose.orientation.w = float(qw)
+        self.moveit_plan_and_execute_cartesian([photo_pose], max_step=0.02, duration_scale=1.4)
         if rook_info is not None:
             self.get_logger().info(f"✅ Arrocco UCI '{uci_move.upper()}' (Re e Torre) completato con MoveIt 2!")
         elif is_en_passant:
