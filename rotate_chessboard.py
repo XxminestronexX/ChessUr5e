@@ -21,7 +21,7 @@ from ros_gz_interfaces.srv import SetEntityPose
 from std_srvs.srv import Trigger
 
 from spawn_utils import (
-    get_chessboard_world_pose,
+    get_chessboard_gazebo_pose,
     get_aruco_world_pose,
     get_photo_shoot_world_pose,
 )
@@ -49,7 +49,7 @@ class ChessboardRotator(Node):
 
     def rotate_board_and_pieces(self, delta_degrees: float):
         delta_rad = math.radians(delta_degrees)
-        cx, cy, cz, current_yaw = get_chessboard_world_pose()
+        cx, cy, cz, current_yaw = get_chessboard_gazebo_pose()
         new_yaw = current_yaw + delta_rad
 
         print("\n" + "=" * 65)

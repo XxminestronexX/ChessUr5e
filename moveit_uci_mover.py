@@ -618,7 +618,7 @@ class MoveItUCIChessMover(Node):
             self.get_logger().info("📸 [Camera D435] Richiesta snapshot e riconoscimento ChessQueries in corso...")
             req = Trigger.Request()
             fut = self.camera_client.call_async(req)
-            rclpy.spin_until_future_complete(self, fut, timeout_sec=20.0)
+            rclpy.spin_until_future_complete(self, fut, timeout_sec=40.0)
             if fut.done():
                 res = fut.result()
                 if res and res.success:

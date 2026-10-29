@@ -18,6 +18,7 @@ echo "🖥️  Configurazione server grafico X11..."
 xhost +local:root > /dev/null 2>&1 || true
 
 # 2. Controllo e avvio container Docker
+rm -f "$PROJECT_DIR/detected_chessboard_pose.json"
 if ! docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
     echo "📦 Creazione ed avvio nuovo container Docker '${CONTAINER_NAME}'..."
     docker run -d \

@@ -50,6 +50,7 @@ checkpoints/
 latest_chessboard_snapshot.jpg
 latest_recognition_viz.jpg
 test_camera_view.jpg
+detected_chessboard_pose.json
 
 # ==========================================
 # Log & OS generated files

@@ -7,6 +7,26 @@ from ament_index_python.packages import get_package_share_directory
 import os
 
 
+def get_chessboard_gazebo_pose():
+    """Legge la VERA posa World della scacchiera DIRETTAMENTE DA GAZEBO per lo spawn iniziale delle pedine."""
+    cmds = ["gz model -m chessboard -p", "ign model -m chessboard -p", "gz model -m chessboard", "ign model -m chessboard"]
+    for cmd in cmds:
+        try:
+            output = subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL).decode('utf-8')
+            lines = output.split('\n')
+            for i, line in enumerate(lines):
+                if "Pose [" in line or "Pose" in line:
+                    xyz_line = lines[i+1]
+                    rpy_line = lines[i+2]
+                    xyz = [float(n) for n in re.findall(r'[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?', xyz_line)]
+                    rpy = [float(n) for n in re.findall(r'[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?', rpy_line)]
+                    if len(xyz) >= 3 and len(rpy) >= 3:
+                        return xyz[0], xyz[1], xyz[2], rpy[2]
+        except Exception:
+            continue
+    return -0.58, -0.22, 1.0098, 3.14159
+
+
 def get_vision_detected_pose():
     """Legge la posa della scacchiera e dell'ArUco RILEVATI DALLA TELECAMERA D435 tramite Computer Vision."""
     json_path = "/workspace/ChessUr5e/detected_chessboard_pose.json"
@@ -24,7 +44,7 @@ def get_vision_detected_pose():
 def get_chessboard_world_pose():
     """
     Restituisce la posa World della scacchiera RICONOSCIUTA DALLA TELECAMERA D435 (Marker ArUco).
-    Zero chiamate o dipendenze da Gazebo.
+    Zero chiamate a Gazebo per il robot.
     """
     data = get_vision_detected_pose()
     if data and "chessboard" in data:
@@ -36,14 +56,14 @@ def get_chessboard_world_pose():
 def get_aruco_world_pose():
     """
     Restituisce la posa 3D del marker ArUco RICONOSCIUTA DALLA TELECAMERA D435.
-    Zero chiamate o dipendenze da Gazebo.
+    Zero chiamate a Gazebo per il robot.
     """
     data = get_vision_detected_pose()
     if data and "aruco" in data:
         ar = data["aruco"]
         return ar["x"], ar["y"], ar["z"], ar["yaw"]
 
-    cx, cy, cz_gz, cb_yaw = get_chessboard_world_pose()
+    cx, cy, cz_gz, cb_yaw = get_chessboard_gazebo_pose()
     ARUCO_LOCAL_X = 0.28
     ARUCO_LOCAL_Y = 0.23
     ARUCO_LOCAL_Z = 0.0012
@@ -88,7 +108,8 @@ def spawn_piece(name, row, col, mesh, color, piece_type, is_black):
     pkg_share = get_package_share_directory('robot_arms')
     xacro_path = os.path.join(pkg_share, 'urdf', 'chess_piece.urdf.xacro')
     
-    cx, cy, cz, cb_yaw = get_chessboard_world_pose()
+    # Per lo spawn fisico dei pezzi in Gazebo, interroghiamo direttamente Gazebo
+    cx, cy, cz, cb_yaw = get_chessboard_gazebo_pose()
     
     # Dimensioni esatte estratte dalla mesh 3D della scacchiera (chessboard.obj)
     SQUARE_SIZE = 0.05875
