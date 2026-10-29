@@ -18,6 +18,8 @@ Funzionalità:
 import os
 import sys
 import time
+import json
+import math
 from pathlib import Path
 
 # Assicura che la cartella del progetto (/workspace/ChessUr5e) sia in sys.path
@@ -31,6 +33,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
+from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import String, Empty
 from std_srvs.srv import Trigger
 
@@ -76,6 +79,18 @@ class CameraBoardRecognitionNode(Node):
         self.ckpt_path = self.workspace_dir / "checkpoints" / "release" / "chessqueries-vitl-644-safetensors-fp16-r1.safetensors"
         self.snapshot_path = self.workspace_dir / "latest_chessboard_snapshot.jpg"
         self.annotated_path = self.workspace_dir / "latest_recognition_viz.jpg"
+        self.detected_pose_file = self.workspace_dir / "detected_chessboard_pose.json"
+
+        # Configurazione Visione Computerizzata ArUco (DICT_4X4_50, Marker ID 0)
+        self.aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+        self.aruco_params = cv2.aruco.DetectorParameters_create()
+        self.marker_size = 0.05  # Dimensione fisica marker ArUco (5 cm x 5 cm)
+        self.camera_hfov = 1.45  # Campo visivo orizzontale RealSense D435
+        self.detected_aruco_data = None
+
+        # Publisher per le pose calcolate via Visione
+        self.aruco_pose_pub = self.create_publisher(PoseStamped, '/chessboard/aruco_pose', 10)
+        self.board_pose_pub = self.create_publisher(PoseStamped, '/chessboard/detected_pose', 10)
 
         # Caricamento predittore ChessQueries
         self.predictor = None
@@ -172,6 +187,11 @@ class CameraBoardRecognitionNode(Node):
         cv2.imwrite(str(self.snapshot_path), img)
         self.get_logger().info(f"💾 Snapshot telecamera salvato in: {self.snapshot_path}")
 
+        # 1b. Riconoscimento Visivo Posa ArUco (Computer Vision)
+        annotated = img.copy()
+        h, w = annotated.shape[:2]
+        self.detect_and_process_aruco(annotated, w, h)
+
         # 2. Esecuzione riconoscimento con ChessQueries
         detected_fen = "8/8/8/8/8/8/8/8 w - - 0 1"
         board_str = ""
@@ -189,9 +209,6 @@ class CameraBoardRecognitionNode(Node):
             self.get_logger().warn("⚠️ Modello ChessQueries non caricato. Generazione preview immagine.")
 
         # 3. Creazione immagine composita annotata (Vista Camera + Overlay Info FEN)
-        annotated = img.copy()
-        h, w = annotated.shape[:2]
-
         # Barra superiore informativa semitrasparente
         overlay = annotated.copy()
         cv2.rectangle(overlay, (0, 0), (w, 65), (20, 20, 20), -1)
@@ -219,6 +236,105 @@ class CameraBoardRecognitionNode(Node):
         self.print_ascii_board(detected_fen)
 
         return True, "Riconoscimento scacchiera completato", detected_fen
+
+    def detect_and_process_aruco(self, annotated_img: np.ndarray, w: int, h: int):
+        """
+        Rileva visivamente il marker ArUco ID 0 nel fotogramma della telecamera,
+        stima la posa 3D relativa e calcola la posa assoluta della scacchiera e del marker
+        senza alcuna interrogazione al simulatore Gazebo.
+        """
+        corners, ids, rejected = cv2.aruco.detectMarkers(annotated_img, self.aruco_dict, parameters=self.aruco_params)
+
+        if ids is not None and 0 in ids:
+            idx = list(ids.flatten()).index(0)
+            c = corners[idx][0]
+
+            # Intrinseci telecamera D435
+            fx = (w / 2.0) / math.tan(self.camera_hfov / 2.0)
+            fy = fx
+            cx_p, cy_p = w / 2.0, h / 2.0
+            K = np.array([[fx, 0, cx_p], [0, fy, cy_p], [0, 0, 1]], dtype=np.float32)
+            dist = np.zeros(5, dtype=np.float32)
+
+            rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers([corners[idx]], self.marker_size, K, dist)
+            rvec = rvecs[0][0]
+            tvec = tvecs[0][0]
+
+            # Disegna marker ed assi 3D (RGB) sul frame
+            cv2.aruco.drawDetectedMarkers(annotated_img, corners, ids)
+            cv2.drawFrameAxes(annotated_img, K, dist, rvec, tvec, 0.05, 2)
+
+            # Matrice di rotazione dell'ArUco rispetto alla telecamera
+            R_cv, _ = cv2.Rodrigues(rvec)
+
+            # Posa nota e stabile della telecamera in Home Panoramica rispetto al mondo
+            cam_pos_world = np.array([-0.842, -0.220, 0.656])
+            v_fwd = np.array([0.262, 0.0, -0.646])
+            v_fwd = v_fwd / np.linalg.norm(v_fwd)
+            v_y_axis = np.array([0.0, -1.0, 0.0])
+            v_x_axis = np.cross(v_y_axis, v_fwd)
+            v_x_axis = v_x_axis / np.linalg.norm(v_x_axis)
+            v_y_axis = np.cross(v_fwd, v_x_axis)
+            v_y_axis = v_y_axis / np.linalg.norm(v_y_axis)
+            R_cam_to_world = np.column_stack([v_x_axis, v_y_axis, v_fwd])
+
+            # Posa 3D ArUco in coordinate World
+            delta_world = R_cam_to_world @ tvec
+            aruco_pos_world = cam_pos_world + delta_world
+
+            R_marker_world = R_cam_to_world @ R_cv
+            marker_x_world = R_marker_world[:, 0]
+            aruco_yaw = math.atan2(marker_x_world[1], marker_x_world[0])
+
+            # Orientamento e centro della scacchiera derivati dalla terna dell'ArUco
+            board_yaw = aruco_yaw + (math.pi / 2.0)
+            ax, ay, az = float(aruco_pos_world[0]), float(aruco_pos_world[1]), float(aruco_pos_world[2])
+
+            bx = ax - (0.28 * math.cos(board_yaw) - 0.23 * math.sin(board_yaw))
+            by = ay - (0.28 * math.sin(board_yaw) + 0.23 * math.cos(board_yaw))
+            bz = az - 0.0012
+
+            self.detected_aruco_data = {
+                'aruco': {'x': ax, 'y': ay, 'z': az, 'yaw': board_yaw},
+                'chessboard': {'x': bx, 'y': by, 'z': bz, 'yaw': board_yaw}
+            }
+
+            # Salva la posa rilevata su file JSON per accesso immediato da parte di tutti i nodi
+            try:
+                with open(str(self.detected_pose_file), 'w') as f:
+                    json.dump(self.detected_aruco_data, f, indent=2)
+            except Exception as e:
+                self.get_logger().error(f"Errore scrittura {self.detected_pose_file}: {e}")
+
+            # Pubblica PoseStamped sui topic ROS 2
+            stamp = self.get_clock().now().to_msg()
+
+            ar_msg = PoseStamped()
+            ar_msg.header.stamp = stamp
+            ar_msg.header.frame_id = 'world'
+            ar_msg.pose.position.x, ar_msg.pose.position.y, ar_msg.pose.position.z = ax, ay, az
+            ar_msg.pose.orientation.z = math.sin(aruco_yaw / 2.0)
+            ar_msg.pose.orientation.w = math.cos(aruco_yaw / 2.0)
+            self.aruco_pose_pub.publish(ar_msg)
+
+            cb_msg = PoseStamped()
+            cb_msg.header.stamp = stamp
+            cb_msg.header.frame_id = 'world'
+            cb_msg.pose.position.x, cb_msg.pose.position.y, cb_msg.pose.position.z = bx, by, bz
+            cb_msg.pose.orientation.z = math.sin(aruco_yaw / 2.0)
+            cb_msg.pose.orientation.w = math.cos(aruco_yaw / 2.0)
+            self.board_pose_pub.publish(cb_msg)
+
+            self.get_logger().info(
+                f"🎯 [Visione ArUco D435] Marker #0 RILEVATO: ({ax:.3f}, {ay:.3f}, {az:.3f}) | "
+                f"Scacchiera stimata: ({bx:.3f}, {by:.3f}) Yaw={math.degrees(aruco_yaw):.1f}°"
+            )
+
+            # Overlay a schermo
+            cv2.putText(annotated_img, f"ArUco #0 RILEVATO: ({ax:.2f}, {ay:.2f}) Yaw: {math.degrees(aruco_yaw):.1f}deg",
+                        (15, h - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 0), 2)
+        else:
+            self.get_logger().warn("⚠️ [Visione ArUco] Marker ID 0 non rilevato nel fotogramma.")
 
     def print_ascii_board(self, fen: str):
         """Stampa la griglia 8x8 a terminale a partire dal FEN."""

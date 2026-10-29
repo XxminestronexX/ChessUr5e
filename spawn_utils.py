@@ -1,37 +1,48 @@
 # spawn_utils.py
+import json
 import re
 import math
 import subprocess
 from ament_index_python.packages import get_package_share_directory
 import os
 
-def get_chessboard_world_pose():
-    """Legge la VERA posa World della scacchiera da Gazebo in tempo reale"""
-    cmds = ["gz model -m chessboard -p", "ign model -m chessboard -p", "gz model -m chessboard", "ign model -m chessboard"]
-    for cmd in cmds:
+
+def get_vision_detected_pose():
+    """Legge la posa della scacchiera e dell'ArUco RILEVATI DALLA TELECAMERA D435 tramite Computer Vision."""
+    json_path = "/workspace/ChessUr5e/detected_chessboard_pose.json"
+    if not os.path.exists(json_path):
+        json_path = os.path.join(os.getcwd(), "detected_chessboard_pose.json")
+    if os.path.exists(json_path):
         try:
-            output = subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL).decode('utf-8')
-            lines = output.split('\n')
-            for i, line in enumerate(lines):
-                if "Pose [" in line or "Pose" in line:
-                    xyz_line = lines[i+1]
-                    rpy_line = lines[i+2]
-                    xyz = [float(n) for n in re.findall(r'[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?', xyz_line)]
-                    rpy = [float(n) for n in re.findall(r'[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?', rpy_line)]
-                    if len(xyz) >= 3 and len(rpy) >= 3:
-                        return xyz[0], xyz[1], xyz[2], rpy[2]
+            with open(json_path, 'r') as f:
+                return json.load(f)
         except Exception:
-            continue
-    return -0.58, -0.22, 1.006, 3.14159
+            pass
+    return None
+
+
+def get_chessboard_world_pose():
+    """
+    Restituisce la posa World della scacchiera RICONOSCIUTA DALLA TELECAMERA D435 (Marker ArUco).
+    Zero chiamate o dipendenze da Gazebo.
+    """
+    data = get_vision_detected_pose()
+    if data and "chessboard" in data:
+        cb = data["chessboard"]
+        return cb["x"], cb["y"], cb["z"], cb["yaw"]
+    return -0.58, -0.22, 1.0098, 3.14159
 
 
 def get_aruco_world_pose():
     """
-    Restituisce la posa 3D reale del marker ArUco nel sistema di riferimento World.
-    Il marker ArUco è fissato sul bordo della scacchiera a:
-      X_local = +0.28 m, Y_local = +0.23 m, Z_local = +0.0012 m
-    Qualsiasi traslazione o rotazione della scacchiera sposta rigidamente l'ArUco.
+    Restituisce la posa 3D del marker ArUco RICONOSCIUTA DALLA TELECAMERA D435.
+    Zero chiamate o dipendenze da Gazebo.
     """
+    data = get_vision_detected_pose()
+    if data and "aruco" in data:
+        ar = data["aruco"]
+        return ar["x"], ar["y"], ar["z"], ar["yaw"]
+
     cx, cy, cz_gz, cb_yaw = get_chessboard_world_pose()
     ARUCO_LOCAL_X = 0.28
     ARUCO_LOCAL_Y = 0.23
