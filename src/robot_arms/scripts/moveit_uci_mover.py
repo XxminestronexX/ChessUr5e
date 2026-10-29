@@ -236,15 +236,20 @@ class MoveItUCIChessMover(Node):
                     req.pose.orientation.w = math.cos(yaw / 2.0)
                     self.set_pose_client.call_async(req)
 
-    def make_vertical_pose(self, x, y, z):
+    def make_vertical_pose(self, x, y, z, cb_yaw=None):
+        if cb_yaw is None:
+            _, _, _, cb_yaw = get_chessboard_world_pose()
+        ee_yaw = cb_yaw - (math.pi / 2.0)
+        qx = math.cos(ee_yaw / 2.0)
+        qy = math.sin(ee_yaw / 2.0)
         p = Pose()
         p.position.x = float(x)
         p.position.y = float(y)
         p.position.z = float(z)
-        p.orientation.x = self.vert_quat[0]
-        p.orientation.y = self.vert_quat[1]
-        p.orientation.z = self.vert_quat[2]
-        p.orientation.w = self.vert_quat[3]
+        p.orientation.x = float(qx)
+        p.orientation.y = float(qy)
+        p.orientation.z = 0.0
+        p.orientation.w = 0.0
         return p
 
     def get_current_robot_state(self):
@@ -424,7 +429,8 @@ class MoveItUCIChessMover(Node):
             req.pose.position.x = float(dst_x)
             req.pose.position.y = float(dst_y)
             req.pose.position.z = float(board_z + 1.0 + 0.0002)
-            yaw = math.pi / 2.0 if is_black else -math.pi / 2.0
+            _, _, _, cb_yaw = get_chessboard_world_pose()
+            yaw = cb_yaw + 1.5708 + (math.pi if is_black else 0.0)
             req.pose.orientation.z = math.sin(yaw / 2.0)
             req.pose.orientation.w = math.cos(yaw / 2.0)
             self.set_pose_client.call_async(req)

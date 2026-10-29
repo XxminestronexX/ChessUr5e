@@ -6,14 +6,14 @@ from ament_index_python.packages import get_package_share_directory
 import os
 
 def get_chessboard_world_pose():
-    """Legge la VERA posa World della scacchiera da Gazebo"""
-    cmds = ["gz model -m chessboard", "ign model -m chessboard"]
+    """Legge la VERA posa World della scacchiera da Gazebo in tempo reale"""
+    cmds = ["gz model -m chessboard -p", "ign model -m chessboard -p", "gz model -m chessboard", "ign model -m chessboard"]
     for cmd in cmds:
         try:
             output = subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL).decode('utf-8')
             lines = output.split('\n')
             for i, line in enumerate(lines):
-                if "Pose" in line:
+                if "Pose [" in line or "Pose" in line:
                     xyz_line = lines[i+1]
                     rpy_line = lines[i+2]
                     xyz = [float(n) for n in re.findall(r'[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?', xyz_line)]

@@ -17,6 +17,7 @@ install(PROGRAMS
   scripts/moveit_uci_mover.py
   scripts/camera_board_recognition_node.py
   scripts/stockfish_node.py
+  scripts/rotate_chessboard.py
   DESTINATION lib/${PROJECT_NAME}/
 )
 
