@@ -118,34 +118,45 @@ class StockfishNode(Node):
             if not self.engine:
                 return False, "", "Motore Stockfish non disponibile!"
 
-        # Isola la disposizione dei pezzi (il primo campo del FEN, es. 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR')
-        piece_placement = self.latest_fen.split()[0] if self.latest_fen else "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
-
         # Il robot gioca con il Nero ('b'): forziamo esplicitamente il turno del Nero
         is_black = not self.robot_color.lower().startswith('w')
-        turn_char = 'b' if is_black else 'w'
+        target_turn = chess.BLACK if is_black else chess.WHITE
 
         board = None
-        for castling in ["KQkq", "kq", "-"]:
+        # 1. Prova prima a caricare direttamente latest_fen se è un FEN completo e valido
+        if self.latest_fen:
             try:
-                candidate_fen = f"{piece_placement} {turn_char} {castling} - 0 1"
-                b = chess.Board(candidate_fen)
-                if b.is_valid():
-                    board = b
-                    break
+                b_cand = chess.Board(self.latest_fen)
+                if b_cand.is_valid():
+                    board = b_cand
+                    if board.turn != target_turn:
+                        self.get_logger().info(f"🔄 Allineamento turno FEN al colore del robot ({'b' if is_black else 'w'}).")
+                        board.turn = target_turn
             except Exception:
-                continue
+                pass
+
+        # 2. Fallback se latest_fen era solo la disposizione dei pezzi o formato incompleto
+        if board is None:
+            piece_placement = self.latest_fen.split()[0] if self.latest_fen else "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+            turn_char = 'b' if is_black else 'w'
+            for castling in ["KQkq", "kq", "-"]:
+                try:
+                    candidate_fen = f"{piece_placement} {turn_char} {castling} - 0 1"
+                    b = chess.Board(candidate_fen)
+                    if b.is_valid():
+                        board = b
+                        break
+                except Exception:
+                    continue
 
         if board is None:
             try:
+                turn_char = 'b' if is_black else 'w'
                 board = chess.Board(f"{piece_placement} {turn_char} - - 0 1")
             except Exception as e:
                 err = f"FEN non valido per Stockfish ({piece_placement}): {e}"
                 self.get_logger().error(err)
                 return False, "", err
-
-        # Forza in modo garantito il turno del robot
-        board.turn = chess.BLACK if is_black else chess.WHITE
 
         color_str = "NERO (Black)" if is_black else "BIANCO (White)"
         self.get_logger().info(f"🤔 Stockfish sta calcolando la mossa migliore per il {color_str}...")

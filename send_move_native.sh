@@ -20,6 +20,10 @@ export PYTHONPATH="$PROJECT_DIR:$PYTHONPATH"
 if [ $# -eq 0 ]; then
     # Partita interattiva Umano vs Stockfish con pulsante
     python3 "$PROJECT_DIR/moveit_uci_mover.py"
+elif [ "$1" == "rotate" ]; then
+    # Comando rapido rotazione: ./send_move_native.sh rotate 25
+    DEG="${2:-25}"
+    python3 "$PROJECT_DIR/rotate_chessboard.py" "$DEG"
 else
     # Esecuzione mosse passate da riga di comando (es: ./send_move_native.sh "e2e4 e7e5")
     python3 "$PROJECT_DIR/moveit_uci_mover.py" "$*"

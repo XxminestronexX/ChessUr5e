@@ -89,3 +89,7 @@ echo "  • Console comandi:   ./send_move.sh"
 echo ""
 echo "Per arrestare la simulazione: ./stop_sim.sh"
 echo "================================================================="
+
+# Avvia direttamente l'interfaccia di gioco senza argomenti
+exec "$PROJECT_DIR/send_move.sh"
+

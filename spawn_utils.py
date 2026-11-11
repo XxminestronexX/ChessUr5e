@@ -41,15 +41,27 @@ def get_vision_detected_pose():
     return None
 
 
+def is_aruco_currently_detected():
+    """Restituisce True se l'ultimo scatto ha effettivamente individuato il marker ArUco."""
+    data = get_vision_detected_pose()
+    if data and data.get("detected", False) is True:
+        return True
+    return False
+
+
 def get_chessboard_world_pose():
     """
     Restituisce la posa World della scacchiera RICONOSCIUTA DALLA TELECAMERA D435 (Marker ArUco).
     Zero chiamate a Gazebo per il robot.
+    Garantisce che Z sia sempre nel sistema World di Gazebo (Z ~ 1.01 m).
     """
     data = get_vision_detected_pose()
     if data and "chessboard" in data:
         cb = data["chessboard"]
-        return cb["x"], cb["y"], cb["z"], cb["yaw"]
+        z = cb["z"]
+        if z < 0.5:
+            z += 1.0
+        return cb["x"], cb["y"], z, cb["yaw"]
     return -0.58, -0.22, 1.0098, 3.14159
 
 
@@ -57,11 +69,15 @@ def get_aruco_world_pose():
     """
     Restituisce la posa 3D del marker ArUco RICONOSCIUTA DALLA TELECAMERA D435.
     Zero chiamate a Gazebo per il robot.
+    Garantisce che Z sia sempre nel sistema World di Gazebo (Z ~ 1.01 m).
     """
     data = get_vision_detected_pose()
     if data and "aruco" in data:
         ar = data["aruco"]
-        return ar["x"], ar["y"], ar["z"], ar["yaw"]
+        z = ar["z"]
+        if z < 0.5:
+            z += 1.0
+        return ar["x"], ar["y"], z, ar["yaw"]
 
     cx, cy, cz_gz, cb_yaw = get_chessboard_gazebo_pose()
     ARUCO_LOCAL_X = 0.28
@@ -79,21 +95,22 @@ def get_photo_shoot_world_pose():
 
     Nel sistema di coordinate locale dell'ArUco marker:
       - Vettore relativo al marker:
-        dx = +0.04 m  (sposta il braccio a sinistra della colonna 'a', liberando A4/A5)
+        dx = -0.08 m  (centra l'asse ottico della telecamera esattamente sul centro della scacchiera)
         dy = -0.23 m  (allineato all'asse centrale della scacchiera)
-        dz = +0.45 m  (quota aerea per inquadrare tutte le 64 caselle)
+        dz = +0.48 m  (quota aerea zenitale per inquadrare tutte le 64 caselle)
 
     Se la scacchiera viene ruotata, girata o traslata sul tavolo,
     la posa di scatto e l'orientamento della telecamera ruotano rigidamente insieme all'ArUco.
     """
     ax, ay, az_world, cb_yaw = get_aruco_world_pose()
-    PHOTO_REL_ARUCO_X = 0.04
+    PHOTO_REL_ARUCO_X = -0.08
     PHOTO_REL_ARUCO_Y = -0.23
-    PHOTO_REL_ARUCO_Z = 0.45
+    PHOTO_REL_ARUCO_Z = 0.48
 
     px = ax + (PHOTO_REL_ARUCO_X * math.cos(cb_yaw)) - (PHOTO_REL_ARUCO_Y * math.sin(cb_yaw))
     py = ay + (PHOTO_REL_ARUCO_X * math.sin(cb_yaw)) + (PHOTO_REL_ARUCO_Y * math.cos(cb_yaw))
-    pz_robot = (az_world - 1.0) + PHOTO_REL_ARUCO_Z
+    robot_az = (az_world - 1.0) if az_world > 0.5 else az_world
+    pz_robot = robot_az + PHOTO_REL_ARUCO_Z
 
     # Orientamento verticale sincronizzato alla rotazione della scacchiera
     ee_yaw = cb_yaw - (math.pi / 2.0)
@@ -103,6 +120,32 @@ def get_photo_shoot_world_pose():
     qw = 0.0
 
     return px, py, pz_robot, (qx, qy, qz, qw)
+
+
+def get_square_world_pose(col: int, row: int):
+    """
+    Calcola la posa World (gx, gy, board_top_z) di una casella (col, row)
+    DIRETTAMENTE rispetto alla terna del Marker ArUco (ID 0).
+    Zero intermediari, ancoraggio geometrico rigido al marker ArUco.
+    """
+    ax, ay, az_world, ar_yaw = get_aruco_world_pose()
+
+    # Offset rigido della casella A1 rispetto al marker ArUco (da chessboard.urdf.xacro):
+    # aruco_marker_link: (0.28, 0.23, 0.0012)
+    # a1_square_link:   (-0.06710, -0.01255, 0.0)
+    A1_REL_ARUCO_X = -0.06710
+    A1_REL_ARUCO_Y = -0.01255
+    SQUARE_SIZE = 0.05875
+
+    lx = A1_REL_ARUCO_X - (col * SQUARE_SIZE)
+    ly = A1_REL_ARUCO_Y - (row * SQUARE_SIZE)
+
+    gx = ax + (lx * math.cos(ar_yaw)) - (ly * math.sin(ar_yaw))
+    gy = ay + (lx * math.sin(ar_yaw)) + (ly * math.cos(ar_yaw))
+
+    # Piano superiore della scacchiera nel frame MoveIt (tavolo a Z=0, mesh spessore 11mm)
+    board_top_z = 0.0112
+    return gx, gy, board_top_z
 
 def spawn_piece(name, row, col, mesh, color, piece_type, is_black):
     pkg_share = get_package_share_directory('robot_arms')

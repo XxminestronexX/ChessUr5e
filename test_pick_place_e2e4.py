@@ -21,7 +21,7 @@ from builtin_interfaces.msg import Duration
 from ros_gz_interfaces.srv import SetEntityPose
 from urdf_parser_py.urdf import URDF
 
-from spawn_utils import get_chessboard_world_pose
+from spawn_utils import get_chessboard_world_pose, get_square_world_pose
 
 
 def urdf_pose_to_kdl_frame(origin):
@@ -169,20 +169,7 @@ class PickPlaceE2E4Node(Node):
         raise RuntimeError(f"Impossibile risolvere IK verticale per ({x:.3f}, {y:.3f}, {z:.3f})")
 
     def square_to_robot_frame(self, row, col):
-        cx, cy, cz_gz, cb_yaw = get_chessboard_world_pose()
-        # Dimensioni esatte estratte dalla mesh 3D della scacchiera (chessboard.obj)
-        SQUARE_SIZE = 0.05875
-        A1_X = 0.21290
-        A1_Y = 0.21745
-
-        lx = A1_X - (col * SQUARE_SIZE)
-        ly = A1_Y - (row * SQUARE_SIZE)
-
-        gx = cx + (lx * math.cos(cb_yaw)) - (ly * math.sin(cb_yaw))
-        gy = cy + (lx * math.sin(cb_yaw)) + (ly * math.cos(cb_yaw))
-
-        board_top_z = (cz_gz - 1.0) + 0.0012
-        return gx, gy, board_top_z
+        return get_square_world_pose(col, row)
 
     def wait_sim_seconds(self, sim_sec):
         """Attende sim_sec secondi nell'orologio di simulazione di Gazebo (/clock)."""

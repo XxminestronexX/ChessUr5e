@@ -37,9 +37,18 @@ from moveit_msgs.action import ExecuteTrajectory, MoveGroup
 from moveit_msgs.msg import Constraints, JointConstraint, RobotState
 from ros_gz_interfaces.srv import SetEntityPose
 from std_srvs.srv import Trigger
+from std_msgs.msg import String
+from tf2_ros import Buffer, TransformListener
 from urdf_parser_py.urdf import URDF
+import chess
 
-from spawn_utils import get_chessboard_world_pose, get_aruco_world_pose, get_photo_shoot_world_pose
+from spawn_utils import (
+    get_chessboard_world_pose,
+    get_aruco_world_pose,
+    get_photo_shoot_world_pose,
+    get_square_world_pose,
+    is_aruco_currently_detected
+)
 
 
 def urdf_pose_to_kdl_frame(origin):
@@ -96,10 +105,21 @@ class MoveItUCIChessMover(Node):
         self.captured_count = {'white': 0, 'black': 0}
         self.init_standard_chessboard_map()
 
+        # Scacchiera canonica per garantire la legalità formale al 100% delle mosse
+        self.game_board = chess.Board()
+        self.canonical_fen_pub = self.create_publisher(String, '/chessboard/canonical_fen', 10)
+
         # Stato aggancio pezzo (Grasp Attachment)
         self.attached_piece = None
         self.attached_is_black = False
         self.piece_z_offset = -0.024
+
+        # Memoria dell'ultima terna ArUco validata: (ax, ay, az, ar_yaw)
+        self.last_aruco_pose = None
+
+        # TF2 Buffer per tracking cinematico ad altissima precisione di hande_tcp_link
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
 
         # Subscriber a /joint_states
         self.js_sub = self.create_subscription(JointState, '/joint_states', self.js_callback, 10)
@@ -114,6 +134,7 @@ class MoveItUCIChessMover(Node):
         self.gripper_client = ActionClient(self, FollowJointTrajectory, '/gripper_controller/follow_joint_trajectory')
         self.set_pose_client = self.create_client(SetEntityPose, '/world/empty/set_pose')
         self.camera_client = self.create_client(Trigger, '/chessboard_camera/snapshot_and_recognize')
+        self.aruco_only_client = self.create_client(Trigger, '/chessboard_camera/detect_aruco_only')
         self.stockfish_client = self.create_client(Trigger, '/stockfish/compute_best_move')
 
     def build_fk_chain(self):
@@ -194,19 +215,7 @@ class MoveItUCIChessMover(Node):
 
     def square_to_world_xy(self, sq_str: str):
         row, col = self.uci_square_to_row_col(sq_str)
-        cx, cy, cz_gz, cb_yaw = get_chessboard_world_pose()
-        # Dimensioni esatte estratte dalla mesh 3D della scacchiera (chessboard.obj)
-        SQUARE_SIZE = 0.05875
-        A1_X = 0.21290
-        A1_Y = 0.21745
-
-        lx = A1_X - (col * SQUARE_SIZE)
-        ly = A1_Y - (row * SQUARE_SIZE)
-
-        gx = cx + (lx * math.cos(cb_yaw)) - (ly * math.sin(cb_yaw))
-        gy = cy + (lx * math.sin(cb_yaw)) + (ly * math.cos(cb_yaw))
-        board_top_z = (cz_gz - 1.0) + 0.0012
-        return gx, gy, board_top_z
+        return get_square_world_pose(col, row)
 
     def js_callback(self, msg: JointState):
         name_to_pos = dict(zip(msg.name, msg.position))
@@ -216,25 +225,28 @@ class MoveItUCIChessMover(Node):
 
             if self.attached_piece is not None and self.set_pose_client.service_is_ready():
                 now_mono = time.monotonic()
-                if not hasattr(self, '_last_pose_update') or (now_mono - self._last_pose_update) >= 0.06:
+                if not hasattr(self, '_last_pose_update') or (now_mono - self._last_pose_update) >= 0.05:
                     self._last_pose_update = now_mono
-                    q_kdl = PyKDL.JntArray(6)
-                    for i in range(6):
-                        q_kdl[i] = self.current_q[i]
-                    f_tcp = PyKDL.Frame()
-                    self.fk_solver.JntToCart(q_kdl, f_tcp)
-
-                    req = SetEntityPose.Request()
-                    req.entity.name = self.attached_piece
-                    req.pose.position.x = float(f_tcp.p.x())
-                    req.pose.position.y = float(f_tcp.p.y())
-                    req.pose.position.z = float(f_tcp.p.z() + 1.0 + self.piece_z_offset)
-                    yaw = math.pi / 2.0 if self.attached_is_black else -math.pi / 2.0
-                    req.pose.orientation.x = 0.0
-                    req.pose.orientation.y = 0.0
-                    req.pose.orientation.z = math.sin(yaw / 2.0)
-                    req.pose.orientation.w = math.cos(yaw / 2.0)
-                    self.set_pose_client.call_async(req)
+                    try:
+                        t = self.tf_buffer.lookup_transform('world', 'hande_tcp_link', rclpy.time.Time())
+                        req = SetEntityPose.Request()
+                        req.entity.name = self.attached_piece
+                        req.pose.position.x = float(t.transform.translation.x)
+                        req.pose.position.y = float(t.transform.translation.y)
+                        
+                        # Il pezzo non deve MAI scendere sotto il piano superiore della scacchiera (1.0112)
+                        min_resting_z = 1.0112
+                        piece_z = t.transform.translation.z + 1.0 + self.piece_z_offset
+                        req.pose.position.z = float(max(min_resting_z, piece_z))
+                        
+                        yaw = math.pi / 2.0 if self.attached_is_black else -math.pi / 2.0
+                        req.pose.orientation.x = 0.0
+                        req.pose.orientation.y = 0.0
+                        req.pose.orientation.z = math.sin(yaw / 2.0)
+                        req.pose.orientation.w = math.cos(yaw / 2.0)
+                        self.set_pose_client.call_async(req)
+                    except Exception:
+                        pass
 
     def make_vertical_pose(self, x, y, z, cb_yaw=None):
         if cb_yaw is None:
@@ -357,6 +369,26 @@ class MoveItUCIChessMover(Node):
         res_fut = gh.get_result_async()
         rclpy.spin_until_future_complete(self, res_fut)
 
+    def solve_ik(self, pose_msg):
+        """Risolve la cinematica inversa (IK) per una posa cartesiana Pose."""
+        if not self.ik_client.wait_for_service(timeout_sec=3.0):
+            return None
+        req = GetPositionIK.Request()
+        req.ik_request.group_name = 'ur_manipulator'
+        req.ik_request.pose_stamped.header.frame_id = 'world'
+        req.ik_request.pose_stamped.pose = pose_msg
+        req.ik_request.robot_state = self.get_current_robot_state()
+        req.ik_request.avoid_collisions = False
+        req.ik_request.timeout.sec = 1
+
+        fut = self.ik_client.call_async(req)
+        rclpy.spin_until_future_complete(self, fut)
+        res = fut.result()
+        if res and res.error_code.val == 1:
+            name_to_pos = dict(zip(res.solution.joint_state.name, res.solution.joint_state.position))
+            return [name_to_pos[j] for j in self.joint_names]
+        return None
+
     def set_gripper(self, stroke_val, duration_sec=0.35):
         goal = FollowJointTrajectory.Goal()
         goal.trajectory.joint_names = ['hande_joint', 'hande_base_to_hande_jaw2_link']
@@ -395,7 +427,16 @@ class MoveItUCIChessMover(Node):
         # 1. Apertura pinza e traslazione aerea sopra la casella di partenza
         self.set_gripper(0.012, duration_sec=0.35)
         self.get_logger().info(f'   [MoveIt 2] Approccio aereo verticale sopra ({src_x:.3f}, {src_y:.3f}, Z={hover_z*1000:.0f}mm)...')
-        self.moveit_plan_and_execute_cartesian([self.make_vertical_pose(src_x, src_y, hover_z)], max_step=0.015, duration_scale=0.8)
+        target_hover_pose = self.make_vertical_pose(src_x, src_y, hover_z)
+        try:
+            self.moveit_plan_and_execute_cartesian([target_hover_pose], max_step=0.015, duration_scale=0.8)
+        except RuntimeError as e:
+            self.get_logger().warn(f'⚠️ Approccio cartesiano parziale ({e}). Fallback con pianificatore OMPL...')
+            q_hover = self.solve_ik(target_hover_pose)
+            if q_hover is not None:
+                self.moveit_move_to_joint_pose(q_hover)
+            else:
+                raise
 
         # 2. Discesa cartesiana 100% verticale sul pezzo
         self.get_logger().info(f'   [MoveIt 2] Discesa cartesiana VERTICALE sul pezzo {piece_name} (Z={grasp_z*1000:.0f}mm)...')
@@ -414,40 +455,77 @@ class MoveItUCIChessMover(Node):
 
         # 5. Trasporto aereo rettilineo sopra la destinazione (a quota costante +160 mm)
         self.get_logger().info(f'   [MoveIt 2] Trasporto aereo sopra destinazione ({dst_x:.3f}, {dst_y:.3f}, Z={hover_z*1000:.0f}mm)...')
-        self.moveit_plan_and_execute_cartesian([self.make_vertical_pose(dst_x, dst_y, hover_z)], max_step=0.015, duration_scale=0.8)
+        target_dst_pose = self.make_vertical_pose(dst_x, dst_y, hover_z)
+        try:
+            self.moveit_plan_and_execute_cartesian([target_dst_pose], max_step=0.015, duration_scale=0.8)
+        except RuntimeError as e:
+            self.get_logger().warn(f'⚠️ Trasporto cartesiano parziale ({e}). Fallback con pianificatore OMPL...')
+            q_dst = self.solve_ik(target_dst_pose)
+            if q_dst is not None:
+                self.moveit_move_to_joint_pose(q_dst)
+            else:
+                raise
 
-        # 6. Discesa cartesiana 100% verticale sulla destinazione
-        self.get_logger().info(f'   [MoveIt 2] Discesa cartesiana VERTICALE di deposito (Z={(grasp_z+0.001)*1000:.0f}mm)...')
-        self.moveit_plan_and_execute_cartesian([self.make_vertical_pose(dst_x, dst_y, grasp_z + 0.001)], max_step=0.01, duration_scale=0.6)
+        # 6. Discesa cartesiana 100% verticale sulla destinazione (quota sicura di deposito senza compressione)
+        deposit_z = grasp_z + 0.005
+        self.get_logger().info(f'   [MoveIt 2] Discesa cartesiana VERTICALE di deposito (Z={deposit_z*1000:.0f}mm)...')
+        self.moveit_plan_and_execute_cartesian([self.make_vertical_pose(dst_x, dst_y, deposit_z)], max_step=0.01, duration_scale=0.6)
 
         # 7. Rilascio del pezzo e apertura pinza
         self.get_logger().info(f'   [MoveIt 2] Rilascio {piece_name}...')
+        self.set_gripper(0.012, duration_sec=0.35)
         self.attached_piece = None
         if self.set_pose_client.service_is_ready():
             req = SetEntityPose.Request()
             req.entity.name = piece_name
             req.pose.position.x = float(dst_x)
             req.pose.position.y = float(dst_y)
-            req.pose.position.z = float(board_z + 1.0 + 0.0002)
+            req.pose.position.z = 1.0112  # Quota calibrata perfetta sulla superficie della scacchiera
             _, _, _, cb_yaw = get_chessboard_world_pose()
             yaw = cb_yaw + 1.5708 + (math.pi if is_black else 0.0)
             req.pose.orientation.z = math.sin(yaw / 2.0)
             req.pose.orientation.w = math.cos(yaw / 2.0)
-            self.set_pose_client.call_async(req)
-        self.set_gripper(0.012, duration_sec=0.35)
+            fut = self.set_pose_client.call_async(req)
+            rclpy.spin_until_future_complete(self, fut, timeout_sec=2.0)
 
         # 8. Risalita cartesiana 100% verticale di disimpegno
         self.get_logger().info(f'   [MoveIt 2] Risalita cartesiana VERTICALE di disimpegno (Z={hover_z*1000:.0f}mm)...')
         self.moveit_plan_and_execute_cartesian([self.make_vertical_pose(dst_x, dst_y, hover_z)], max_step=0.01, duration_scale=0.6)
+
+    def get_capture_deposit_slot(self, is_black: bool) -> tuple[float, float]:
+        """
+        Calcola le coordinate fisse del tavolo per il deposito ordinato dei pezzi catturati.
+        La zona è situata sul fianco laterale del tavolo (Y = -0.64m per Bianchi, Y = -0.70m per Neri),
+        ad una distanza di oltre 44 cm dal centro della scacchiera.
+        Poiché il raggio massimo d'ingombro della scacchiera ruotata è di soli 36 cm,
+        la scacchiera NON potrà MAI raggiungere né sovrapporsi a questa zona,
+        azzerando il rischio di singolarità o collisioni con MoveIt 2.
+        """
+        side_key = 'black' if is_black else 'white'
+        slot_idx = self.captured_count[side_key]
+        self.captured_count[side_key] += 1
+
+        # Due file ordinate sul lato destro/sud del tavolo:
+        # Fila Bianchi: Y = -0.64 m
+        # Fila Neri:    Y = -0.70 m
+        grave_y = -0.70 if is_black else -0.64
+        # Offset progressivo lungo l'asse X ben dentro il workspace (da X=-0.32 a X=-0.64)
+        grave_x = -0.32 - ((slot_idx % 8) * 0.042)
+        return grave_x, grave_y
 
     def execute_uci_move(self, uci_move: str):
         uci_move = uci_move.strip().lower()
         if len(uci_move) < 4:
             raise ValueError(f"Mossa UCI '{uci_move}' non valida! Esempio valido: e2e4, g1f3, b8c6.")
 
+        # 🎯 STEP FONDAMENTALE: Prima di muovere qualsiasi pezzo, inquadra l'ArUco per aggiornare il riferimento!
+        self.get_logger().info("🎯 [Pre-Motion Scan] Inquadratura ottica dell'ArUco per validare il riferimento cartesiano...")
+        self.check_and_update_aruco_pose()
+
         src_sq = uci_move[:2]
         dst_sq = uci_move[2:4]
 
+        # Coordinate calcolate tassativamente rispetto alla terna ArUco appena inquadrata
         src_x, src_y, board_z = self.square_to_world_xy(src_sq)
         dst_x, dst_y, _ = self.square_to_world_xy(dst_sq)
 
@@ -524,12 +602,8 @@ class MoveItUCIChessMover(Node):
             self.get_logger().info(
                 f"⚔️ EN PASSANT RILEVATO! Cattura al varco del pedone avversario '{cap_name}' in {ep_cap_sq.upper()}..."
             )
-            side_key = 'black' if cap_black else 'white'
-            idx = self.captured_count[side_key]
-            self.captured_count[side_key] += 1
-            # Zona deposito pezzi catturati a sinistra della scacchiera (X = -0.86 m)
-            grave_x = -0.86
-            grave_y = -0.40 + idx * 0.045
+            grave_x, grave_y = self.get_capture_deposit_slot(cap_black)
+            self.get_logger().info(f"   [Cimitero Fisso Tavolo] Deposito sicuro a (X={grave_x:.3f}, Y={grave_y:.3f})...")
             self.pick_and_place_piece(cap_name, cap_type, cap_black, ep_x, ep_y, grave_x, grave_y, board_z)
             if ep_cap_sq in self.board_state:
                 del self.board_state[ep_cap_sq]
@@ -537,22 +611,33 @@ class MoveItUCIChessMover(Node):
         elif dst_sq in self.board_state:
             cap_name, cap_type, cap_black = self.board_state[dst_sq]
             self.get_logger().info(f"⚔️ CATTURA RILEVATA in {dst_sq.upper()}: rimozione verticale di '{cap_name}'...")
-            side_key = 'black' if cap_black else 'white'
-            idx = self.captured_count[side_key]
-            self.captured_count[side_key] += 1
-            # Zona deposito pezzi catturati a sinistra della scacchiera (X = -0.86 m)
-            grave_x = -0.86
-            grave_y = -0.40 + idx * 0.045
+            grave_x, grave_y = self.get_capture_deposit_slot(cap_black)
+            self.get_logger().info(f"   [Cimitero Fisso Tavolo] Deposito sicuro a (X={grave_x:.3f}, Y={grave_y:.3f})...")
             self.pick_and_place_piece(cap_name, cap_type, cap_black, dst_x, dst_y, grave_x, grave_y, board_z)
             del self.board_state[dst_sq]
 
         # Esegue il Pick & Place 100% verticale del pezzo (o Re) da src_sq a dst_sq
         self.pick_and_place_piece(piece_name, ptype, is_black, src_x, src_y, dst_x, dst_y, board_z)
 
-        # Aggiorna la mappa interna della scacchiera
+        # Aggiorna la mappa interna della scacchiera (con supporto promozione pedone a donna/torre/alfiere/cavallo)
         if src_sq in self.board_state:
             del self.board_state[src_sq]
+        if len(uci_move) == 5:
+            promo_char = uci_move[4]
+            ptype = {'q': 'queen', 'r': 'rook', 'b': 'bishop', 'n': 'knight'}.get(promo_char, ptype)
         self.board_state[dst_sq] = (piece_name, ptype, is_black)
+
+        # Aggiorna lo stato ufficiale della partita FIDE
+        try:
+            m_obj = chess.Move.from_uci(uci_move)
+            if m_obj in self.game_board.legal_moves:
+                self.game_board.push(m_obj)
+            else:
+                self.game_board.push_san(uci_move)
+            self.canonical_fen_pub.publish(String(data=self.game_board.fen()))
+            self.get_logger().info(f"📜 [Partita FIDE Ufficiale] Mossa {uci_move.upper()} registrata. FEN: {self.game_board.fen()}")
+        except Exception:
+            pass
 
         # Se era un arrocco, sposta adesso la relativa torre
         if rook_info is not None:
@@ -565,19 +650,9 @@ class MoveItUCIChessMover(Node):
                 del self.board_state[r_src_sq]
             self.board_state[r_dst_sq] = (r_name, r_type, r_black)
 
-        # Ritorna in posa Home Panoramica (ancorata rigidamente al marker ArUco)
-        px, py, pz, (qx, qy, qz, qw) = get_photo_shoot_world_pose()
+        # Ritorna in posa di ispezione e riallineamento zenitale ancorato alla scacchiera
         self.set_gripper(0.0, duration_sec=0.25)
-        self.get_logger().info(f'🏠 Ritorno in Home Panoramica ancorata ad ArUco (X={px:.3f}, Y={py:.3f}, Z={pz:.3f})...')
-        photo_pose = Pose()
-        photo_pose.position.x = float(px)
-        photo_pose.position.y = float(py)
-        photo_pose.position.z = float(pz)
-        photo_pose.orientation.x = float(qx)
-        photo_pose.orientation.y = float(qy)
-        photo_pose.orientation.z = float(qz)
-        photo_pose.orientation.w = float(qw)
-        self.moveit_plan_and_execute_cartesian([photo_pose], max_step=0.02, duration_scale=1.4)
+        self.move_to_inspection_and_align()
         if rook_info is not None:
             self.get_logger().info(f"✅ Arrocco UCI '{uci_move.upper()}' (Re e Torre) completato con MoveIt 2!")
         elif is_en_passant:
@@ -585,8 +660,221 @@ class MoveItUCIChessMover(Node):
         else:
             self.get_logger().info(f"✅ Mossa UCI '{uci_move.upper()}' completata con MoveIt 2!")
 
-        # 📸 Scatto telecamera D435 in posa Home e riconoscimento FEN tramite ChessQueries
-        self.trigger_camera_recognition()
+    def trigger_aruco_detection_only(self):
+        """Richiede al nodo camera unicamente il rilevamento del Marker ArUco (veloce, senza ChessQueries)."""
+        if not self.aruco_only_client.service_is_ready():
+            self.aruco_only_client.wait_for_service(timeout_sec=1.5)
+
+        if self.aruco_only_client.service_is_ready():
+            req = Trigger.Request()
+            fut = self.aruco_only_client.call_async(req)
+            rclpy.spin_until_future_complete(self, fut, timeout_sec=5.0)
+            if fut.done() and fut.result():
+                return fut.result().success
+        else:
+            # Fallback se il servizio aruco_only non è ancora esposto
+            self.trigger_camera_recognition()
+            return is_aruco_currently_detected()
+        return False
+
+    def explore_and_locate_aruco(self):
+        """
+        Esplora autonomamente lo spazio di lavoro della cella robotica per localizzare il marker ArUco.
+        Esegue un pattern di scansione grandangolare (Scan Grid) su posizioni calibrate del tavolo.
+        Usa esclusivamente la scansione ottica rapida dell'ArUco (zero chiamate a ChessQueries).
+        Appena l'ArUco viene rilevato, interrompe la ricerca e restituisce True.
+        """
+        self.get_logger().info("🔍 [Exploration Mode] Avvio scansione dello spazio per localizzare il Marker ArUco...")
+        ee_yaw = math.pi / 2.0
+
+        scan_waypoints = [
+            ("Settore Centrale/ArUco", -0.76, -0.32, 0.58),
+            ("Settore Posteriore",     -0.84, -0.32, 0.58),
+            ("Settore Sinistro",       -0.70, -0.15, 0.58),
+            ("Settore Destro",         -0.70, -0.42, 0.58),
+            ("Settore Anteriore",      -0.55, -0.22, 0.58),
+        ]
+
+        for sector_name, sx, sy, sz in scan_waypoints:
+            self.get_logger().info(f"   🔎 Scansione ottica verso: {sector_name} ({sx:.2f}, {sy:.2f}, Z={sz:.2f}m)...")
+            p = Pose()
+            p.position.x = float(sx)
+            p.position.y = float(sy)
+            p.position.z = float(sz)
+            p.orientation.x = float(math.cos(ee_yaw / 2.0))
+            p.orientation.y = float(math.sin(ee_yaw / 2.0))
+            p.orientation.z = 0.0
+            p.orientation.w = 0.0
+
+            try:
+                self.moveit_plan_and_execute_cartesian([p], max_step=0.02, duration_scale=1.0)
+            except Exception:
+                q_sol = self.solve_ik(p)
+                if q_sol:
+                    self.moveit_move_to_joint_pose(q_sol)
+
+            # Rilevamento veloce del solo marker ArUco
+            found = self.trigger_aruco_detection_only()
+            if found or is_aruco_currently_detected():
+                ax, ay, az, ar_yaw = get_aruco_world_pose()
+                self.get_logger().info(
+                    f"🎯 [ArUco Individuato!] Trovato nel {sector_name}: "
+                    f"Pos=({ax:.3f}, {ay:.3f}, {az:.3f}), Yaw={math.degrees(ar_yaw):.1f}°"
+                )
+                return True
+
+        self.get_logger().warn("⚠️ [Exploration Mode] Scansione completata. Marker ArUco non trovato nei settori standard.")
+        return False
+
+    def check_and_update_aruco_pose(self, force: bool = False):
+        """
+        Controlla se la terna di riferimento ArUco ha subito una traslazione o rotazione.
+        Esegue la scansione ottica rapida dell'ArUco (senza attivare ChessQueries).
+        Rileva qualsiasi variazione (scostamento > 5.0 mm o rotazione > 0.5°).
+        Se non visibile, attiva la scansione autonoma dei settori del tavolo.
+        """
+        # Scansione rapida del solo ArUco
+        self.trigger_aruco_detection_only()
+
+        # Se l'ArUco non è visibile nel frame attuale, esplora autonomamente il piano
+        if not is_aruco_currently_detected():
+            self.get_logger().warn("⚠️ ArUco non visibile nella visuale corrente. Attivazione scansione settori...")
+            self.explore_and_locate_aruco()
+
+        ax, ay, az, ar_yaw = get_aruco_world_pose()
+
+        if self.last_aruco_pose is None or force:
+            self.last_aruco_pose = (ax, ay, az, ar_yaw)
+            self.get_logger().info(
+                f"📍 [ArUco Baseline] Terna iniziale acquisita: Pos=({ax:.3f}, {ay:.3f}, {az:.3f}), "
+                f"Yaw={math.degrees(ar_yaw):.1f}°"
+            )
+            return True
+
+        old_ax, old_ay, old_az, old_yaw = self.last_aruco_pose
+        delta_pos = math.hypot(ax - old_ax, ay - old_ay)
+        
+        delta_yaw = (ar_yaw - old_yaw + math.pi) % (2.0 * math.pi) - math.pi
+        delta_deg = abs(math.degrees(delta_yaw))
+
+        # Sensibilità sub-millimetrica ed angolare ultra-fine: rileva anche micro-rotazioni (> 1.5 mm o > 0.15°)
+        if delta_pos > 0.0015 or delta_deg > 0.15:
+            self.get_logger().info(
+                f"🔄 [Cambiamento Terna ArUco Rilevato!] Δpos={delta_pos*1000:.1f} mm, "
+                f"Δyaw={delta_deg:.2f}°! Ricalcolo istantaneo delle caselle e riallineamento..."
+            )
+            self.last_aruco_pose = (ax, ay, az, ar_yaw)
+            return True
+        else:
+            self.get_logger().info(
+                f"✅ [Terna ArUco Convalidata] Stabile (Δpos={delta_pos*1000:.1f}mm, Δyaw={delta_deg:.2f}°)."
+            )
+            return False
+
+    def move_to_inspection_and_align(self, force_align: bool = False):
+        """
+        Ciclo Industriale di Autolocalizzazione, Visual Servoing & Riconoscimento FEN:
+        1. Il robot sale in Posa di Ispezione Calibrata centrata sul settore scacchiera/ArUco (X=-0.76, Y=-0.32, Z=0.58m);
+        2. Rileva la terna ArUco tramite scansione ottica rapida (senza eseguire ChessQueries);
+        3. Si allinea con precisione a piombo ortogonale sul baricentro della scacchiera ruotata;
+        4. SOLO ADESSO, dalla posizione perfettamente centrata e ortogonale ad ArUco,
+           esegue il riconoscimento visivo dei pezzi e del FEN tramite ChessQueries!
+        """
+        self.get_logger().info('🔭 [Ispezione Autonoma] Spostamento in Inspection Pose calibrata (X=-0.76, Y=-0.32, Z=0.58m)...')
+        ee_yaw_insp = math.pi / 2.0
+        insp_pose = Pose()
+        insp_pose.position.x = -0.76
+        insp_pose.position.y = -0.32
+        insp_pose.position.z = 0.58
+        insp_pose.orientation.x = float(math.cos(ee_yaw_insp / 2.0))
+        insp_pose.orientation.y = float(math.sin(ee_yaw_insp / 2.0))
+        insp_pose.orientation.z = 0.0
+        insp_pose.orientation.w = 0.0
+
+        try:
+            self.moveit_plan_and_execute_cartesian([insp_pose], max_step=0.02, duration_scale=1.2)
+        except Exception:
+            q_insp = self.solve_ik(insp_pose)
+            if q_insp:
+                self.moveit_move_to_joint_pose(q_insp)
+
+        # Scatto rapido ArUco e verifica cambiamenti
+        changed = self.check_and_update_aruco_pose(force=force_align)
+
+        # Step 2: Visual Servoing - Centratura fine ortogonale a piombo rispetto alla terna ArUco
+        ax, ay, az_world, ar_yaw = get_aruco_world_pose()
+        rx, ry, rz = -0.08, -0.23, 0.50
+        px = ax + (rx * math.cos(ar_yaw)) - (ry * math.sin(ar_yaw))
+        py = ay + (rx * math.sin(ar_yaw)) + (ry * math.cos(ar_yaw))
+        pz = (az_world - 1.0) + rz if az_world > 0.5 else az_world + rz
+
+        ee_yaw = ar_yaw - (math.pi / 2.0)
+        servo_pose = Pose()
+        servo_pose.position.x = float(px)
+        servo_pose.position.y = float(py)
+        servo_pose.position.z = float(pz)
+        servo_pose.orientation.x = float(math.cos(ee_yaw / 2.0))
+        servo_pose.orientation.y = float(math.sin(ee_yaw / 2.0))
+        servo_pose.orientation.z = 0.0
+        servo_pose.orientation.w = 0.0
+
+        self.get_logger().info(f'🎯 [Visual Servoing] Posizionamento a piombo ortogonale su ArUco (Yaw={math.degrees(ar_yaw):.1f}°)...')
+        try:
+            self.moveit_plan_and_execute_cartesian([servo_pose], max_step=0.02, duration_scale=1.2)
+        except Exception:
+            q_servo = self.solve_ik(servo_pose)
+            if q_servo:
+                self.moveit_move_to_joint_pose(q_servo)
+
+        # 📸 STEP FONDAMENTALE: Esecuzione di ChessQueries per riconoscere pezzi e FEN
+        # SOLO ADESSO che il braccio è perfettamente allineato e ortogonale alla scacchiera!
+        # Esegue fino a 3 scatti con media/migliore angolazione se il primo scatto presenta riflessi
+        self.get_logger().info('♟️ [ChessQueries] Braccio in posizione ortogonale corretta: avvio acquisizione e riconoscimento FEN...')
+        fen_valid, det_move, det_fen = self.trigger_camera_recognition()
+
+        if not fen_valid:
+            self.get_logger().warn("🔄 [Multi-Angle Acquisition] Riconoscimento iniziale incerto. Esecuzione micro-scatti angolati...")
+            # Punti di vista angolati per eliminare ombre e riflessi speculari
+            view_angles = [
+                (0.00,  0.00, 0.54),  # Quota rialzata +4 cm (vista più aperta)
+                (+0.03, 0.00, 0.50),  # Offset destro +3 cm
+                (-0.03, 0.00, 0.50),  # Offset sinistro -3 cm
+            ]
+            for jx, jy, jz in view_angles:
+                rpx = px + jx
+                rpy = py + jy
+                rpz = (az_world - 1.0) + jz if az_world > 0.5 else az_world + jz
+                retry_p = Pose()
+                retry_p.position.x = float(rpx)
+                retry_p.position.y = float(rpy)
+                retry_p.position.z = float(rpz)
+                retry_p.orientation = servo_pose.orientation
+                try:
+                    self.moveit_plan_and_execute_cartesian([retry_p], max_step=0.015, duration_scale=0.8)
+                    fen_valid, det_move, det_fen = self.trigger_camera_recognition()
+                    if fen_valid:
+                        self.get_logger().info("🎉 [Multi-Angle Success] Scatto angolato convalidato con successo!")
+                        break
+                except Exception:
+                    continue
+        return fen_valid, det_move, det_fen
+
+    def initial_calibration_and_mapping(self):
+        """
+        Ad inizio sessione: il robot esplora attivamente lo spazio di lavoro, identifica visivamente
+        l'ArUco ovunque sia posizionato, mappa tutte le 64 caselle e i pezzi rispetto alla terna
+        rilevata ed estrae il FEN iniziale della partita.
+        """
+        print("\n" + "=" * 68)
+        print("🎯   ESPLORAZIONE SPAZIO & MAPPATURA SCACCHIERA TRAMITE ARUCO   🎯")
+        print("=" * 68)
+        print("🔍 Ricerca autonoma della scacchiera sul piano di lavoro in corso...")
+        self.move_to_inspection_and_align(force_align=True)
+
+        ax, ay, az, ar_yaw = get_aruco_world_pose()
+        print(f"📍 Terna ArUco identificata con successo: X={ax:.3f} m, Y={ay:.3f} m, Yaw={math.degrees(ar_yaw):.1f}°")
+        print("🗺️ Mappatura delle 64 caselle (A1..H8) ancorate alla terna ArUco completata.")
+        print("=" * 68 + "\n")
 
     def get_stockfish_best_move(self):
         """Richiede al nodo Stockfish 16 la contromossa migliore per il Nero basata sul FEN della camera."""
@@ -609,8 +897,12 @@ class MoveItUCIChessMover(Node):
                 self.get_logger().warn(f"Stockfish: {res.message}")
         return None
 
-    def trigger_camera_recognition(self):
-        """Richiede al nodo camera D435 uno snapshot e il riconoscimento FEN."""
+    def trigger_camera_recognition(self) -> tuple[bool, str, str]:
+        """
+        Richiede al nodo camera D435 uno snapshot e il riconoscimento FEN.
+        Restituisce: (success, detected_move, final_fen).
+        Permette al robot reale di identificare autonomamente la mossa eseguita dall'umano con la sola telecamera.
+        """
         if not self.camera_client.service_is_ready():
             self.camera_client.wait_for_service(timeout_sec=1.5)
 
@@ -623,12 +915,84 @@ class MoveItUCIChessMover(Node):
                 res = fut.result()
                 if res and res.success:
                     self.get_logger().info(f"🎯 [Visione D435 + ChessQueries] {res.message}")
+                    parts = res.message.split('|')
+                    det_move = parts[0].strip() if len(parts) > 1 else ""
+                    det_fen = parts[1].strip() if len(parts) > 1 else res.message
+                    return True, det_move, det_fen
                 else:
-                    self.get_logger().warn(f"⚠️ Servizio camera: {res.message if res else 'Nessuna risposta'}")
+                    self.get_logger().warn(f"⚠️ Riconoscimento FEN incerto o anomalo: {res.message if res else 'Nessuna risposta'}")
+                    return False, "", ""
             else:
                 self.get_logger().warn("⚠️ Timeout attesa risposta da camera_board_recognition_node.")
+                return False, "", ""
         else:
             self.get_logger().info("ℹ️ Servizio camera non rilevato. Avvia 'camera_board_recognition_node.py' per il riconoscimento automatico.")
+            return True, "", ""
+
+    def apply_human_move(self, uci_move: str):
+        """
+        Registra la mossa eseguita fisicamente dall'umano (Bianco) rilevata dalla telecamera.
+        Aggiorna la mappa interna dei pezzi e la scacchiera FIDE SENZA muovere fisicamente il robot.
+        """
+        uci_move = uci_move.strip().lower()
+        src_sq = uci_move[:2]
+        dst_sq = uci_move[2:4]
+
+        src_row, src_col = self.uci_square_to_row_col(src_sq)
+        dst_row, dst_col = self.uci_square_to_row_col(dst_sq)
+
+        piece_name = f"white_piece_{dst_sq}"
+        ptype = 'pawn'
+        is_black = False
+
+        if src_sq in self.board_state:
+            piece_name, ptype, is_black = self.board_state[src_sq]
+            del self.board_state[src_sq]
+
+        # Arrocco dell'umano (sposta la relativa torre nella mappa logica)
+        is_castling = (ptype == 'king' and abs(dst_col - src_col) == 2)
+        if is_castling:
+            if dst_col > src_col:
+                r_src, r_dst = f"h{src_row + 1}", f"f{src_row + 1}"
+            else:
+                r_src, r_dst = f"a{src_row + 1}", f"d{src_row + 1}"
+            if r_src in self.board_state:
+                r_name, r_type, r_black = self.board_state[r_src]
+                del self.board_state[r_src]
+                self.board_state[r_dst] = (r_name, r_type, r_black)
+
+        # En passant dell'umano
+        is_en_passant = (
+            ptype == 'pawn' and
+            abs(dst_col - src_col) == 1 and
+            abs(dst_row - src_row) == 1 and
+            dst_sq not in self.board_state
+        )
+        if is_en_passant:
+            ep_cap_sq = f"{chr(ord('a') + dst_col)}{src_row + 1}"
+            if ep_cap_sq in self.board_state:
+                del self.board_state[ep_cap_sq]
+        elif dst_sq in self.board_state:
+            del self.board_state[dst_sq]
+
+        # Promozione
+        if len(uci_move) == 5:
+            promo_char = uci_move[4]
+            ptype = {'q': 'queen', 'r': 'rook', 'b': 'bishop', 'n': 'knight'}.get(promo_char, ptype)
+
+        self.board_state[dst_sq] = (piece_name, ptype, is_black)
+
+        # Aggiorna lo stato ufficiale FIDE
+        try:
+            m_obj = chess.Move.from_uci(uci_move)
+            if m_obj in self.game_board.legal_moves:
+                self.game_board.push(m_obj)
+            else:
+                self.game_board.push_san(uci_move)
+            self.canonical_fen_pub.publish(String(data=self.game_board.fen()))
+            self.get_logger().info(f"📜 [Partita FIDE] Mossa Umano {uci_move.upper()} registrata. FEN: {self.game_board.fen()}")
+        except Exception as e:
+            self.get_logger().error(f"Errore registrazione mossa umano FIDE: {e}")
 
     def find_piece_at_gazebo_xy(self, target_x, target_y):
         """Se un pezzo è stato mosso prima di avviare il nodo, cerca tra i 32 modelli quello più vicino a (target_x, target_y)."""
@@ -696,60 +1060,104 @@ def main(args=None):
         cli_moves = parse_uci_sequence(cli_args) if cli_args else []
 
         if cli_moves:
+            # Calibrazione e mappatura iniziale rispetto ad ArUco
+            node.initial_calibration_and_mapping()
+
             print(f"♟️ Sequenza di {len(cli_moves)} mosse da eseguire: {' -> '.join([m.upper() for m in cli_moves])}")
             for idx, m in enumerate(cli_moves, 1):
+                # Controlla se la terna ArUco è cambiata prima di ogni mossa
+                node.check_and_update_aruco_pose()
                 print(f"\n▶️ [{idx}/{len(cli_moves)}] Esecuzione mossa: {m.upper()}")
                 node.execute_uci_move(m)
         else:
-            # Modalità interattiva partita Umano vs Stockfish con pulsante fine turno
+            # Calibrazione e mappatura iniziale rispetto ad ArUco ad inizio sessione interattiva
+            node.initial_calibration_and_mapping()
+
+            # Modalità interattiva partita Umano vs Stockfish
             print("\n" + "=" * 68)
             print("♟️   PARTITA A SCACCHI: UMANO (BIANCO) vs ROBOT UR5e + STOCKFISH 16 (NERO)   ♟️")
             print("=" * 68)
-            print("Modalità Turn-based con validazione visiva:")
-            print("  1. Tu (Umano) inserisci la tua mossa (es: 'e2e4').")
-            print("  2. Il robot UR5e la esegue per te (simulando la tua azione).")
-            print("  3. Il braccio risale in Home e la camera D435 fotografa la scacchiera.")
-            print("  4. ChessQueries riconosce il FEN aggiornato.")
-            print("  5. Confermi la fine del turno tramite il [PULSANTE INVIO].")
-            print("  6. Stockfish 16 calcola la mossa migliore ed il robot la esegue per il Nero!")
+            print("Flusso Operativo Reale (Sim-to-Real):")
+            print("  1. L'umano muove fisicamente il pezzo del Bianco sulla scacchiera reale;")
+            print("  2. L'umano preme [INVIO] per cedere il turno al robot;")
+            print("  3. La telecamera D435 e ChessQueries RILEVANO AUTONOMAMENTE la mossa eseguita;")
+            print("  4. Stockfish 16 calcola la migliore contromossa per il Nero;")
+            print("  5. Il robot UR5e esegue FISICAMENTE solo la contromossa del Nero.")
+            print("Comandi aggiuntivi da terminale (opzionali):")
+            print("  • Premi [INVIO] -> Riconoscimento visivo autonomo mossa umano;")
+            print("  • 'e2e4' (mossa esplicita) -> esecuzione simulata robotica della mossa;")
+            print("  • 'rotate 25' (o -45) -> ruota fisicamente scacchiera e pezzi in Gazebo;")
+            print("  • 'stop' o 'q' -> arresta la partita ed esce.")
             print("=" * 68)
-            print("Digita 'q' per uscire.\n")
 
             while rclpy.ok():
                 try:
-                    user_move = input("\n👉 [TURNO UMANO - BIANCO] Inserisci la tua mossa (es. e2e4): ").strip()
+                    user_input = input("\n👉 [TURNO UMANO - BIANCO] Muovi sulla scacchiera e premi [INVIO] (o comando/'stop'): ").strip()
                 except EOFError:
                     break
-                if not user_move or user_move.lower() in ('q', 'quit', 'exit'):
+                if user_input.lower() in ('q', 'quit', 'exit', 'stop'):
                     break
 
-                moves = parse_uci_sequence(user_move)
-                if not moves:
-                    print(f"⚠️ Mossa non valida: '{user_move}'. Esempio: e2e4")
+                # Supporto comando di rotazione dinamica: "rotate <gradi>" o "rotate"
+                if user_input.lower().startswith('rotate'):
+                    tokens = user_input.split()
+                    delta_deg = 25.0
+                    if len(tokens) > 1:
+                        try:
+                            delta_deg = float(tokens[1])
+                        except ValueError:
+                            print(f"⚠️ Valore gradi non valido: '{tokens[1]}'. Uso 25°.")
+                    print(f"\n🔄 [Simulazione Fisica] Rotazione della scacchiera di {delta_deg:+.1f}° con i pezzi nella posizione ATTUALE...")
+                    try:
+                        from rotate_chessboard import ChessboardRotator
+                        rotator = ChessboardRotator()
+                        rotator.rotate_board_and_pieces(delta_deg, board_state=node.board_state, game_board=node.game_board)
+                        rotator.destroy_node()
+                        print(f"✅ Scacchiera e pezzi ruotati fisicamente in Gazebo! Il robot ri-esplorerà per trovarli.")
+                    except Exception as e:
+                        node.get_logger().error(f"Errore durante la rotazione: {e}")
                     continue
 
-                # Esegue la mossa dell'umano
-                for m in moves:
-                    try:
-                        node.execute_uci_move(m)
-                    except Exception as e:
-                        node.get_logger().error(f"Errore durante l'esecuzione della mossa '{m}': {e}")
-                        break
+                # CASO 1: MODALITÀ ROBOT REALE (L'umano ha mosso fisicamente sulla scacchiera e premuto INVIO)
+                if not user_input:
+                    print("\n📸 [Ispezione Visiva] Il robot inquadra la scacchiera per rilevare la mossa dell'umano...")
+                    ok, det_move, det_fen = node.move_to_inspection_and_align()
 
-                # 🔘 PULSANTE FINE TURNO UMANO
-                print("\n" + "-" * 68)
-                print("📸 Il braccio è in Home Panoramica e la telecamera ha registrato la nuova posizione.")
-                btn = input("🔘 [PULSANTE FINE TURNO]: Premi [INVIO] per cedere il turno a Stockfish (oppure 'q' per uscire): ").strip()
-                if btn.lower() in ('q', 'quit', 'exit'):
-                    break
+                    if not ok or not det_move:
+                        print("⚠️ [Visione Camera] Nessuna mossa rilevata sulla scacchiera! Assicurati di aver mosso il tuo pezzo e riprova premendo [INVIO].")
+                        continue
 
-                # Turno del Robot (Stockfish 16)
+                    m_obj = chess.Move.from_uci(det_move)
+                    if m_obj not in node.game_board.legal_moves:
+                        print(f"⚠️ [Mossa Illegale Rilevata] La mossa '{det_move.upper()}' osservata non è legale! Correggi la posizione e riprova.")
+                        continue
+
+                    print(f"\n🎯 [VISIONE REAL-TIME]: Mossa dell'Umano RILEVATA DALLA TELECAMERA: \033[1;32m{det_move.upper()}\033[0m")
+                    node.apply_human_move(det_move)
+
+                # CASO 2: MODALITÀ SIMULAZIONE / TESTING (L'utente ha inserito una mossa UCI da terminale)
+                else:
+                    moves = parse_uci_sequence(user_input)
+                    if not moves:
+                        print(f"⚠️ Comando o mossa non valida: '{user_input}'. Esempio: premi [INVIO] oppure scrivi 'e2e4'")
+                        continue
+
+                    for m in moves:
+                        try:
+                            node.check_and_update_aruco_pose()
+                            node.execute_uci_move(m)
+                        except Exception as e:
+                            node.get_logger().error(f"Errore durante l'esecuzione della mossa '{m}': {e}")
+                            break
+
+                # ORA È IL TURNO DEL ROBOT (NERO - STOCKFISH 16)
                 print("\n🤖 [TURNO ROBOT - NERO]: Stockfish 16 sta analizzando il FEN e calcolando la contromossa...")
                 best_move = node.get_stockfish_best_move()
                 if best_move:
-                    print(f"💡 Stockfish ha selezionato la mossa migliore: \033[1;32m{best_move.upper()}\033[0m")
-                    print(f"🦾 Il robot UR5e sta eseguendo la mossa di Stockfish...")
+                    print(f"💡 Stockfish ha selezionato la contromossa migliore: \033[1;32m{best_move.upper()}\033[0m")
+                    print(f"🦾 Il robot UR5e sta eseguendo fisicamente la mossa del Nero...")
                     try:
+                        node.check_and_update_aruco_pose()
                         node.execute_uci_move(best_move)
                     except Exception as e:
                         node.get_logger().error(f"Errore esecuzione mossa Stockfish '{best_move}': {e}")

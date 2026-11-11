@@ -27,6 +27,27 @@ from spawn_utils import (
 )
 
 
+import os
+import sys
+import time
+import math
+import re
+import subprocess
+import json
+import chess
+import rclpy
+from rclpy.node import Node
+from ros_gz_interfaces.srv import SetEntityPose
+from std_srvs.srv import Trigger
+
+from spawn_utils import (
+    get_chessboard_gazebo_pose,
+    get_aruco_world_pose,
+    get_photo_shoot_world_pose,
+    get_square_world_pose
+)
+
+
 class ChessboardRotator(Node):
     def __init__(self):
         super().__init__('chessboard_rotator')
@@ -47,7 +68,19 @@ class ChessboardRotator(Node):
         fut = self.set_pose_client.call_async(req)
         rclpy.spin_until_future_complete(self, fut, timeout_sec=2.0)
 
-    def rotate_board_and_pieces(self, delta_degrees: float):
+    def get_latest_fen_or_board(self):
+        """Recupera l'ultimo FEN noto della partita o mappa da moveit_uci_mover / detected_chessboard_pose.json."""
+        # Prova a leggere l'ultimo FEN da file snapshot/log se presente
+        try:
+            with open("/workspace/ChessUr5e/detected_chessboard_pose.json", "r") as f:
+                data = json.load(f)
+                if "latest_fen" in data:
+                    return data["latest_fen"]
+        except Exception:
+            pass
+        return None
+
+    def rotate_board_and_pieces(self, delta_degrees: float, board_state: dict = None, game_board: chess.Board = None):
         delta_rad = math.radians(delta_degrees)
         cx, cy, cz, current_yaw = get_chessboard_gazebo_pose()
         new_yaw = current_yaw + delta_rad
@@ -59,30 +92,78 @@ class ChessboardRotator(Node):
         print(f"🧭 Yaw precedente:   {math.degrees(current_yaw):.1f}° ({current_yaw:.4f} rad)")
         print(f"🧭 Nuovo Yaw:         {math.degrees(new_yaw):.1f}° ({new_yaw:.4f} rad)")
 
-        # 1. Ruota il modello della scacchiera
+        # 1. Ruota il modello della scacchiera in Gazebo
         self.set_model_pose('chessboard', cx, cy, cz, new_yaw)
         print("✅ Scacchiera ruotata in Gazebo.")
 
-        # 2. Ruota tutti i 32 pezzi solidali alla scacchiera
+        # 2. Ruota tutti i pezzi presenti nella posizione ATTUALE della partita
         SQUARE_SIZE = 0.05875
         A1_X = 0.21290
         A1_Y = 0.21745
 
-        # Mappatura dei 32 pezzi standard
-        all_pieces = (
-            [(f'white_pawn_{i}', 1, i, False) for i in range(8)] +
-            [(f'black_pawn_{i}', 6, i, True) for i in range(8)] +
-            [('white_rook_1', 0, 0, False), ('white_rook_2', 0, 7, False),
-             ('black_rook_1', 7, 0, True), ('black_rook_2', 7, 7, True),
-             ('white_knight_1', 0, 1, False), ('white_knight_2', 0, 6, False),
-             ('black_knight_1', 7, 1, True), ('black_knight_2', 7, 6, True),
-             ('white_bishop_1', 0, 2, False), ('white_bishop_2', 0, 5, False),
-             ('black_bishop_1', 7, 2, True), ('black_bishop_2', 7, 5, True),
-             ('white_queen', 0, 3, False), ('white_king', 0, 4, False),
-             ('black_queen', 7, 3, True), ('black_king', 7, 4, True)]
-        )
+        # Se abbiamo board_state (da moveit_uci_mover: { 'e4': ('white_pawn_4', 'pawn', False) }), usiamo quella!
+        pieces_to_move = []
+        if board_state:
+            for sq, (piece_name, ptype, is_black) in board_state.items():
+                col = ord(sq[0]) - ord('a')
+                row = int(sq[1]) - 1
+                pieces_to_move.append((piece_name, row, col, is_black))
+        elif game_board:
+            # Deriva la mappatura dei modelli dal game_board FIDE
+            type_counters = {}
+            for sq, piece in game_board.piece_map().items():
+                col = chess.square_file(sq)
+                row = chess.square_rank(sq)
+                color = 'white' if piece.color == chess.WHITE else 'black'
+                ptype = chess.piece_name(piece.piece_type)
+                key = (color, ptype)
+                cnt = type_counters.get(key, 0) + 1
+                type_counters[key] = cnt
+                if ptype == 'pawn':
+                    name = f'{color}_pawn_{cnt-1}'
+                elif ptype in ('queen', 'king'):
+                    name = f'{color}_{ptype}'
+                else:
+                    name = f'{color}_{ptype}_{cnt}'
+                pieces_to_move.append((name, row, col, piece.color == chess.BLACK))
+        else:
+            latest_fen = self.get_latest_fen_or_board()
+            if latest_fen:
+                try:
+                    gb = chess.Board(latest_fen)
+                    type_counters = {}
+                    for sq, piece in gb.piece_map().items():
+                        col = chess.square_file(sq)
+                        row = chess.square_rank(sq)
+                        color = 'white' if piece.color == chess.WHITE else 'black'
+                        ptype = chess.piece_name(piece.piece_type)
+                        key = (color, ptype)
+                        cnt = type_counters.get(key, 0) + 1
+                        type_counters[key] = cnt
+                        if ptype == 'pawn':
+                            name = f'{color}_pawn_{cnt-1}'
+                        elif ptype in ('queen', 'king'):
+                            name = f'{color}_{ptype}'
+                        else:
+                            name = f'{color}_{ptype}_{cnt}'
+                        pieces_to_move.append((name, row, col, piece.color == chess.BLACK))
+                except Exception:
+                    pass
 
-        for name, row, col, is_black in all_pieces:
+            if not pieces_to_move:
+                # Fallback 32 pezzi standard
+                for i in range(8):
+                    pieces_to_move.append((f'white_pawn_{i}', 1, i, False))
+                    pieces_to_move.append((f'black_pawn_{i}', 6, i, True))
+                back = [
+                    ('rook_1', 0), ('knight_1', 1), ('bishop_1', 2), ('queen', 3),
+                    ('king', 4), ('bishop_2', 5), ('knight_2', 6), ('rook_2', 7)
+                ]
+                for p, c in back:
+                    pieces_to_move.append((f'white_{p}', 0, c, False))
+                    pieces_to_move.append((f'black_{p}', 7, c, True))
+
+        for name, row, col, is_black in pieces_to_move:
             lx = A1_X - (col * SQUARE_SIZE)
             ly = A1_Y - (row * SQUARE_SIZE)
 
@@ -93,27 +174,20 @@ class ChessboardRotator(Node):
 
             self.set_model_pose(name, gx, gy, gz, p_yaw)
 
-        print("✅ Tutti i 32 pezzi riposizionati e ruotati solidalmente con la scacchiera.")
+        print(f"✅ {len(pieces_to_move)} pezzi riposizionati e ruotati solidalmente con la scacchiera nella posizione attuale.")
 
-        # 3. Calcolo e stampa nuova posa ArUco e posa Home Panoramica
-        ax, ay, az, _ = get_aruco_world_pose()
-        px, py, pz, _ = get_photo_shoot_world_pose()
+        # 3. Calcolo e stampa nuova posa ArUco e posa Home Panoramica (SOLO se richiesta calibrazione)
+        # NOTA BENE: Nessuna chiamata a camera_client per non "suggerire" la posa al robot!
+        # Il robot deve accorgersene da solo esplorando lo spazio tramite telecamera.
+        ARUCO_LOCAL_X = 0.28
+        ARUCO_LOCAL_Y = 0.23
+        ax = cx + (ARUCO_LOCAL_X * math.cos(new_yaw)) - (ARUCO_LOCAL_Y * math.sin(new_yaw))
+        ay = cy + (ARUCO_LOCAL_X * math.sin(new_yaw)) + (ARUCO_LOCAL_Y * math.cos(new_yaw))
 
         print("-" * 65)
-        print("🎯 VERIFICA ANCORAGGIO ARUCO:")
-        print(f"  • Posa ArUco Marker aggiornata:      X={ax:.4f}, Y={ay:.4f}, Z={az:.4f}")
-        print(f"  • Posa Home Panoramica (da ArUco):   X={px:.4f}, Y={py:.4f}, Z={pz:.4f}")
+        print("🎯 STATO FISICO GAZEBO AGGIORNATO (All'insaputa del robot):")
+        print(f"  • Nuova posizione fisica ArUco:      X={ax:.4f}, Y={ay:.4f}, Yaw={math.degrees(new_yaw):.1f}°")
         print("=" * 65)
-
-        # 4. Scatta una foto per verificare che la telecamera e ChessQueries rilevino la scacchiera ruotata
-        time.sleep(0.5)
-        if self.camera_client.wait_for_service(timeout_sec=2.0):
-            print("\n📸 Richiesta scatto telecamera D435 dalla nuova configurazione...")
-            req = Trigger.Request()
-            fut = self.camera_client.call_async(req)
-            rclpy.spin_until_future_complete(self, fut, timeout_sec=15.0)
-            if fut.done() and fut.result():
-                print(f"🎯 Esito riconoscimento: {fut.result().message}")
 
 
 def main():
