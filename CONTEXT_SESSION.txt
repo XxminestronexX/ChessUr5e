@@ -509,6 +509,10 @@ AF. Supporto Nativo Robot Reale vs Umano: Rilevamento Ottico Autonomo 100% delle
        Stockfish 16 per la risposta del Nero, ed esegue FISICAMENTE solo la contromossa del robot UR5e!
        (Nota: 'ok, det_move, det_fen = node.move_to_inspection_and_align()' esegue un singolo scatto atomico,
        prevenendo doppie chiamate ridondanti a 'trigger_camera_recognition').
+       Inoltre, in 'reconcile_with_previous' il matching di transizione fisica dell'occupanza opera direttamente
+       da 'b_prev', evitando che il vecchio FEN canonico della mossa precedente (che aveva 62/64 caselle coincidenti)
+       possa intercettare erroneamente e azzerare la nuova mossa dell'umano. Testato su immagine reale: mossa 'g1f3'
+       riconosciuta al 100% (64/64 caselle coincidenti).
      * Modalità Simulazione / Debug: Se un collaboratore digita manualmente una mossa UCI (es: 'e2e4') da terminale,
        il braccio esegue anche la mossa del Bianco come surrogato per test automatici senza operatore fisico.
   4. Gestione Errori e Illegalità: Se l'umano preme [INVIO] senza aver mosso o se esegue una mossa illegale, il

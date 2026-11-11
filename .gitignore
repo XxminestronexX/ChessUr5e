@@ -4,6 +4,7 @@
 build/
 install/
 log/
+images/
 COLCON_IGNORE
 AMENT_IGNORE
 
@@ -51,6 +52,8 @@ latest_chessboard_snapshot.jpg
 latest_recognition_viz.jpg
 test_camera_view.jpg
 detected_chessboard_pose.json
+*.jpg
+*.png
 
 # ==========================================
 # Log & OS generated files

@@ -452,55 +452,18 @@ class CameraBoardRecognitionNode(Node):
     def reconcile_with_previous(self, prev_fen: str, detected_fen: str, visual_occupancy: dict[int, bool] = None) -> tuple[str, bool, str]:
         """
         Filtro di Transizione Ibrido a Doppia Validazione (Visione Occupanza Diretta + ChessQueries + FEN Canonico):
-        Restituisce (final_fen, is_valid, detected_move) per permettere al robot reale di sapere quale mossa
-        ha effettuato l'umano con le proprie mani unicamente tramite la visione della telecamera!
+        Restituisce (final_fen, is_valid, detected_move) per permettere al robot reale di identificare
+        in tempo reale e autonomamente la mossa eseguita dall'umano con la sola telecamera.
         """
         try:
             b_prev = chess.Board(prev_fen)
             b_raw = chess.Board(detected_fen) if detected_fen else None
-
-            # -------------------------------------------------------------
-            # LIVELLO 1: Verifica di conformità con il FEN Canonico Partita
-            # -------------------------------------------------------------
-            if self.canonical_fen:
-                try:
-                    b_canon = chess.Board(self.canonical_fen)
-                    # Misura accordo con l'occupanza fisica (64 caselle)
-                    occ_matches = sum(
-                        1 for sq in chess.SQUARES if (b_canon.piece_at(sq) is not None) == visual_occupancy[sq]
-                    ) if visual_occupancy else 64
-
-                    # Misura accordo con le classi predette da ChessQueries
-                    class_matches = sum(
-                        1 for sq in chess.SQUARES if b_raw and b_canon.piece_at(sq) == b_raw.piece_at(sq)
-                    ) if b_raw else 64
-
-                    # Se la visione conferma la conformità con lo stato canonico della partita
-                    if occ_matches >= 60 or class_matches >= 50:
-                        if visual_occupancy:
-                            self.confirmed_occupancy = dict(visual_occupancy)
-                        det_move = ""
-                        for m in b_prev.legal_moves:
-                            b_test = b_prev.copy()
-                            b_test.push(m)
-                            if b_test.fen().split()[0] == b_canon.fen().split()[0]:
-                                det_move = m.uci()
-                                break
-                        self.get_logger().info(
-                            f"🎯 [Vision Validation] FEN reale della partita CONFERMATO dalla visione! "
-                            f"(Occupanza: {occ_matches}/64, ChessQueries: {class_matches}/64, Mossa: {det_move.upper()})\n"
-                            f"   FEN: {self.canonical_fen}"
-                        )
-                        return self.canonical_fen, True, det_move
-                except Exception as e:
-                    self.get_logger().warn(f"Errore validazione FEN canonico: {e}")
-
-            # -------------------------------------------------------------
-            # LIVELLO 2: Transizione Fisica Diretta da prev_fen (Robot Reale vs Umano)
-            # -------------------------------------------------------------
             turn_color = b_prev.turn
             turn_str = "BIANCO" if turn_color == chess.WHITE else "NERO"
 
+            # -------------------------------------------------------------
+            # LIVELLO 1: Transizione Fisica Diretta da prev_fen (Robot Reale vs Umano)
+            # -------------------------------------------------------------
             if visual_occupancy:
                 prev_occupancy = self.confirmed_occupancy if self.confirmed_occupancy else {
                     sq: (b_prev.piece_at(sq) is not None) for sq in chess.SQUARES
@@ -538,6 +501,14 @@ class CameraBoardRecognitionNode(Node):
                     reconciled = best_occ_board.fen()
                     self.confirmed_occupancy = dict(visual_occupancy)
                     det_move = best_occ_move.uci()
+                    # Se canonical_fen è presente e concorda con la disposizione pezzi risultante, usalo per preservare metadata
+                    if self.canonical_fen:
+                        try:
+                            b_c = chess.Board(self.canonical_fen)
+                            if b_c.fen().split()[0] == best_occ_board.fen().split()[0]:
+                                reconciled = self.canonical_fen
+                        except Exception:
+                            pass
                     self.get_logger().info(
                         f"🎯 [Physical Transition Engine] Riconosciuta mossa legale del {turn_str}: "
                         f"{best_occ_move.uci().upper()} ({int(best_occ_score)}/64 caselle coincidenti). "
